@@ -1,4 +1,17 @@
-@import "tailwindcss" theme(static);
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: #f5f5f7;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@import "tailwindcss" theme (static);
 @import "@nuxt/ui";
 
 @theme static {
@@ -18,4 +31,8 @@
 
 .dark {
   --ui-primary: var(--ui-color-primary-500);
+}
+
+.container {
+  margin: 20px;
 }

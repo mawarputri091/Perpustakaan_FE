@@ -1,7 +1,7 @@
+<script setup>
+import HalamanLogin from './Manejemen siswa/HalamanLogin.vue';
+</script>
+
 <template>
-  <Suspense>
-    <UApp>
-      <RouterView />
-    </UApp>
-  </Suspense>
+  <HalamanLogin/>
 </template>
