@@ -7,15 +7,13 @@
       <ul>
         <li>Dashboard</li>
         <li class="active">Tugas</li>
-        <router-link to="/" class="menu">Dashboard </router-link>
-<router-link to="/classes" class="menu">Classes</router-link>
+        <router-link to="/classes" class="menu">Classes</router-link>
         <li>Materi</li>
         <li>Absensi</li>
         <li>Forum</li>
         <li>Berita</li>
       </ul>
     </aside>
-
     <!-- MAIN -->
     <div class="main">
 
@@ -287,6 +285,7 @@ const handleLogout = () => {
   background: rgba(255,255,255,0.2);
 }
 
+
 .active {
   background: rgba(255,255,255,0.3);
 }
@@ -299,10 +298,16 @@ const handleLogout = () => {
   border-radius: 10px;
   color: white;
   text-decoration: none;
+  transition: 0.3s;
+   cursor: pointer;
 }
 
 .menu.router-link-active {
   background: rgba(255,255,255,0.3);
+}
+
+.menu:hover {
+  background: rgba(255,255,255,0.2);
 }
 
 .main {

@@ -4,14 +4,27 @@
     <!-- HEADER -->
     <div class="header">
       <div class="left">
-        <span class="back" @click="$router.push('/login')">←</span>
+        <span class="back" @click="$router.push('/classroom')">←</span>
         <h2>Classes</h2>
       </div>
 
       <div class="actions">
-        <button class="btn">Log out</button>
-        <button class="btn">Login</button>
-        <div class="avatar">Foto profil</div>
+       
+  <div class="profile">
+    <img 
+      :src="profileImage || 'https://via.placeholder.com/40'" 
+      class="avatar-img"
+      @click="toggleMenu"
+    />
+
+    <div v-if="showMenu" class="dropdown">
+      <label class="upload">
+        Ganti Foto
+        <input type="file" @change="handleUpload" hidden />
+      </label>
+      <button @click="handleLogout">Logout</button>
+    </div>
+  </div>
       </div>
     </div>
 
@@ -81,6 +94,9 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 import { ref, computed } from 'vue'
 
 const search = ref('')
@@ -150,21 +166,49 @@ const handleDelete = () => {
   classes.value.splice(selectedIndex.value, 1)
   selectedIndex.value = null
 }
+
+// PROFILE
+const profileImage = ref(null)
+const showMenu = ref(false)
+
+const toggleMenu = () => {
+  showMenu.value = !showMenu.value
+}
+
+const handleUpload = (e) => {
+  const file = e.target.files[0]
+  if (file) {
+    profileImage.value = URL.createObjectURL(file)
+  }
+}
+
+const handleLogout = () => {
+  alert('Logout berhasil!')
+  router.push('/login')
+}
 </script>
 
 <style scoped>
+/* MAIN */
+.main {
+  padding: 20px;
+  background: #f3f3f3;
+  min-height: 100vh;
+  font-family: 'Segoe UI', sans-serif;
+}
 
 /* HEADER */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #7b6f6f;
-  padding: 15px;
-  border-radius: 10px;
+  padding: 20px;
+  border-radius: 20px;
+  background: linear-gradient(135deg,#6a5af9,#5b4cf0);
   color: white;
 }
 
+/* LEFT */
 .left {
   display: flex;
   align-items: center;
@@ -172,38 +216,52 @@ const handleDelete = () => {
 }
 
 .back {
+  font-size: 20px;
   cursor: pointer;
-  font-size: 18px;
 }
 
-.actions {
+/* PROFILE */
+.profile {
+  position: relative;
+}
+
+.avatar-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid white;
+  cursor: pointer;
+}
+
+/* DROPDOWN */
+.dropdown {
+  position: absolute;
+  right: 0;
+  top: 50px;
+  background: white;
+  border-radius: 12px;
+  padding: 10px;
+  width: 150px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
   display: flex;
+  flex-direction: column;
   gap: 10px;
-  align-items: center;
 }
 
-.btn {
-  background: #3b0f7a;
+.dropdown button,
+.upload {
+  background: linear-gradient(135deg,#6a5af9,#5b4cf0);
   color: white;
   border: none;
-  padding: 6px 10px;
+  padding: 8px;
   border-radius: 8px;
-}
-
-.avatar {
-  width: 45px;
-  height: 45px;
-  border-radius: 50%;
-  background: #3b0f7a;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
+  cursor: pointer;
 }
 
 /* TOOLBAR */
 .toolbar {
   display: flex;
+  align-items: center;
   gap: 15px;
   margin-top: 20px;
 }
@@ -212,13 +270,14 @@ const handleDelete = () => {
   padding: 10px;
   border-radius: 20px;
   border: none;
-  background: #3b0f7a;
-  color: white;
+  width: 200px;
+  background: #e9e9e9;
 }
 
 .filter {
   padding: 10px;
   border-radius: 20px;
+  border: none;
 }
 
 .toolbar-actions {
@@ -227,49 +286,51 @@ const handleDelete = () => {
   gap: 10px;
 }
 
+/* BUTTON */
 .circle {
   width: 35px;
   height: 35px;
   border-radius: 50%;
   border: none;
-  background: #3b0f7a;
+  background: linear-gradient(135deg,#6a5af9,#5b4cf0);
   color: white;
+  font-size: 18px;
 }
 
 .edit {
-  background: #3b0f7a;
+  background: linear-gradient(135deg,#6a5af9,#5b4cf0);
   color: white;
   border: none;
   padding: 8px 15px;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 /* TABLE */
 .table {
   margin-top: 20px;
-  background: #7b6f6f;
-  border-radius: 15px;
+  background: white;
+  border-radius: 20px;
   padding: 10px;
-  color: white;
 }
 
 .row {
   display: grid;
   grid-template-columns: 1fr 2fr 2fr 1fr;
   padding: 12px;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid #ddd;
 }
 
 .header-row {
   font-weight: bold;
+  border-bottom: 2px solid #ccc;
+}
+
+.row:hover {
+  background: #f5f5ff;
 }
 
 .activeRow {
-  background: rgba(255,255,255,0.2);
-}
-
-.empty {
-  padding: 10px;
+  background: #eaeaff;
 }
 
 /* MODAL */
@@ -307,10 +368,11 @@ const handleDelete = () => {
 }
 
 .modal-actions button {
-  background: #3b0f7a;
+  background: linear-gradient(135deg,#6a5af9,#5b4cf0);
   color: white;
   border: none;
   padding: 8px;
   border-radius: 8px;
 }
+
 </style>
