@@ -14,7 +14,7 @@ const categories = computed(() => ['all', ...new Set(bookStore.books.map(b => b.
 
 const filteredBooks = computed(() => {
   return bookStore.books.filter(b => {
-      const matchSearch = b.title.toLowerCase().includes(searchQuery.value.toLowerCase()) || b.author.toLowerCase().includes(searchQuery.value.toLowerCase())
+      const matchSearch = (b.title || '').toLowerCase().includes(searchQuery.value.toLowerCase()) || (b.author || '').toLowerCase().includes(searchQuery.value.toLowerCase())
       const matchMode = filterMode.value === 'all' || b.type === filterMode.value
       const matchCat = filterCategory.value === 'all' || b.category === filterCategory.value
       return matchSearch && matchMode && matchCat
@@ -55,9 +55,9 @@ const filteredBooks = computed(() => {
     </div>
     <div v-else class="text-center py-12 text-slate-500">
       <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-          <Icon name="search" size="24" />
+         <Icon name="search" size="24" />
       </div>
-      <p>Buku yang Anda cari tidak ditemukan.</p>
+      <p>Buku yang Anda cari tidak ditemukan atau Database API masih kosong.</p>
     </div>
   </div>
 </template>

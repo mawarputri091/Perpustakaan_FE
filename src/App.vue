@@ -1,3 +1,18 @@
+<script setup>
+import { onMounted } from 'vue'
+import { useBookStore } from './stores/bookStore'
+import { useLoanStore } from './stores/loanStore'
+
+const bookStore = useBookStore()
+const loanStore = useLoanStore()
+
+onMounted(() => {
+  // Menarik data dari API saat aplikasi pertama kali dimuat
+  bookStore.fetchBooks()
+  loanStore.fetchLoans()
+})
+</script>
+
 <template>
   <router-view v-slot="{ Component }">
     <transition name="fade" mode="out-in">

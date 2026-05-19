@@ -8,81 +8,83 @@ import Icon from '../components/Icon.vue'
 const bookStore = useBookStore()
 const loanStore = useLoanStore()
 
-// Peminjaman Menunggu Persetujuan
 const pendingLoans = computed(() => {
   return loanStore.loans.filter(l => l.status === 'pending').map(l => ({
-    ...l, book: bookStore.books.find(b => b.id === l.bookId), user: mockUsers.find(u => u.id === l.userId)
+    ...l, book: bookStore.books.find(b => b.id === l.bookId) || { title: 'Memuat buku...' }, user: mockUsers.find(u => u.id === l.userId) || { name: l.userId }
   }))
 })
 
-const handleApprove = (id) => {
-  if (loanStore.approveLoan(id)) alert('Permintaan peminjaman disetujui. Stok buku berhasil dikurangi.')
-  else alert('Gagal menyetujui peminjaman. Stok buku fisik mungkin sudah habis.')
+const handleApprove = async (id) => {
+  const success = await loanStore.approveLoan(id)
+  if (success) alert('Permintaan peminjaman disetujui. Stok buku berhasil dikurangi.')
+  else alert('Gagal menyetujui peminjaman.')
 }
 
-const handleReject = (id) => {
+const handleReject = async (id) => {
   if(confirm("Apakah Anda yakin ingin menolak permintaan peminjaman ini?")) {
-     loanStore.rejectLoan(id)
+     await loanStore.rejectLoan(id)
      alert('Permintaan peminjaman ditolak.')
   }
 }
 
-const returnBook = (loanId) => {
-  loanStore.returnBook(loanId)
+const returnBook = async (loanId) => {
+  await loanStore.returnBook(loanId)
   alert('Buku berhasil dikembalikan. Stok bertambah.')
 }
 
 const activeLoans = computed(() => {
   return loanStore.loans.filter(l => l.status === 'active').map(l => ({
-    ...l, book: bookStore.books.find(b => b.id === l.bookId), user: mockUsers.find(u => u.id === l.userId) || { name: l.borrowerName, email: 'Peminjam Offline' }
+    ...l, book: bookStore.books.find(b => b.id === l.bookId) || { title: 'Memuat buku...' }, user: mockUsers.find(u => u.id === l.userId) || { name: l.borrowerName || l.userId }
   }))
 })
 
-// CRUD Setup
+// CRUD API
 const showAddModal = ref(false)
 const isEditMode = ref(false)
 const editingBookId = ref(null)
 const newBook = reactive({ title: '', author: '', type: 'digital', category: 'Pemrograman', stock: 1, description: '', cover: '' })
+const isProcessing = ref(false)
 
 const openAddModal = () => {
-  isEditMode.value = false; editingBookId.value = null;
+  isEditMode.value = false
+  editingBookId.value = null
   Object.assign(newBook, { title: '', author: '', type: 'digital', category: 'Pemrograman', stock: 1, description: '', cover: '' })
   showAddModal.value = true
 }
 
 const openEditModal = (book) => {
-  isEditMode.value = true; editingBookId.value = book.id;
-  Object.assign(newBook, { title: book.title, author: book.author, type: book.type, category: book.category, stock: book.stock || 0, description: book.description || '', cover: book.cover || '' })
+  isEditMode.value = true
+  editingBookId.value = book.id
+  Object.assign(newBook, {
+    title: book.title, author: book.author, type: book.type, category: book.category,
+    stock: book.stock || 0, description: book.description || '', cover: book.cover || ''
+  })
   showAddModal.value = true
 }
 
-const saveBook = () => {
-  const defaultCover = '[https://images.unsplash.com/photo-1456953180671-730de08edaa7?auto=format&fit=crop&w=300&q=80](https://images.unsplash.com/photo-1456953180671-730de08edaa7?auto=format&fit=crop&w=300&q=80)';
+const saveBook = async () => {
+  isProcessing.value = true
+  const defaultCover = '[https://images.unsplash.com/photo-1456953180671-730de08edaa7?auto=format&fit=crop&w=300&q=80](https://images.unsplash.com/photo-1456953180671-730de08edaa7?auto=format&fit=crop&w=300&q=80)'
+  const payload = { ...newBook, cover: newBook.cover || defaultCover, pdfUrl: DEFAULT_PDF, rating: 0, reviews: [] }
+  
   if (isEditMode.value) {
-    const idx = bookStore.books.findIndex(b => b.id === editingBookId.value)
-    if (idx !== -1) {
-      bookStore.books[idx] = { ...bookStore.books[idx], ...newBook, cover: newBook.cover || defaultCover }
-      alert('Data buku berhasil diperbarui!')
-    }
+    const success = await bookStore.editBook(editingBookId.value, payload)
+    if(success) alert('Data buku berhasil diperbarui ke Database API!')
+    else alert('Gagal memperbarui buku ke Database.')
   } else {
-    bookStore.books.push({
-      id: Date.now(),
-      ...newBook,
-      cover: newBook.cover || defaultCover,
-      pdfUrl: DEFAULT_PDF,
-      rating: 0,
-      reviews: []
-    })
-    alert('Buku berhasil ditambahkan ke katalog!')
+    const success = await bookStore.createBook(payload)
+    if(success) alert('Buku berhasil ditambahkan ke Database API!')
+    else alert('Gagal menambahkan buku ke Database.')
   }
-  bookStore.saveStore()
+  isProcessing.value = false
   showAddModal.value = false
 }
 
-const deleteBook = (id) => {
-  if(confirm('Hapus buku ini?')) {
-    const idx = bookStore.books.findIndex(b => b.id === id)
-    if(idx !== -1) { bookStore.books.splice(idx, 1); bookStore.saveStore(); }
+const deleteBook = async (id) => {
+  if(confirm('Hapus buku ini secara permanen dari Database?')) {
+    const success = await bookStore.removeBook(id)
+    if(success) alert('Buku terhapus dari Database!')
+    else alert('Gagal menghapus buku.')
   }
 }
 
@@ -92,9 +94,9 @@ const loanDuration = ref(7)
 const selectedBookId = ref('')
 const physicalBooksAvailable = computed(() => bookStore.books.filter(b => b.type === 'physical' && b.stock > 0))
 
-const processOfflineLoan = () => {
+const processOfflineLoan = async () => {
   if (!borrowerName.value.trim() || !selectedBookId.value || !loanDuration.value) return alert('Lengkapi data peminjaman terlebih dahulu!')
-  const success = loanStore.borrowBookOffline(borrowerName.value, parseInt(selectedBookId.value), parseInt(loanDuration.value))
+  const success = await loanStore.borrowBookOffline(borrowerName.value, selectedBookId.value, parseInt(loanDuration.value))
   if (success) {
     alert('Peminjaman offline berhasil diproses secara manual!')
     borrowerName.value = ''
@@ -126,7 +128,7 @@ const processOfflineLoan = () => {
         <table class="w-full text-left text-sm border-collapse bg-white rounded-xl overflow-hidden shadow-sm">
           <thead>
             <tr class="bg-amber-100/50 text-amber-800 border-b border-amber-100">
-              <th class="p-3 font-medium">Anggota</th>
+              <th class="p-3 font-medium">Anggota ID / Nama</th>
               <th class="p-3 font-medium">Buku Fisik</th>
               <th class="p-3 font-medium text-center">Tgl Pengajuan</th>
               <th class="p-3 font-medium text-center">Persetujuan</th>
@@ -134,7 +136,7 @@ const processOfflineLoan = () => {
           </thead>
           <tbody class="divide-y divide-amber-50">
             <tr v-for="loan in pendingLoans" :key="loan.id" class="hover:bg-amber-50/30 transition">
-              <td class="p-3 font-medium text-slate-800">{{ loan.user?.name }}</td>
+              <td class="p-3 font-medium text-slate-800">{{ loan.user?.name || loan.userId }}</td>
               <td class="p-3 font-medium">{{ loan.book?.title }} <span class="text-xs font-normal text-slate-500 block">Sisa Stok: {{ loan.book?.stock }}</span></td>
               <td class="p-3 text-center text-slate-500">{{ new Date(loan.requestDate).toLocaleDateString('id-ID') }}</td>
               <td class="p-3 flex justify-center gap-2">
@@ -197,7 +199,7 @@ const processOfflineLoan = () => {
           </thead>
           <tbody class="divide-y divide-slate-100">
             <tr v-for="loan in activeLoans" :key="loan.id" class="hover:bg-slate-50 transition">
-              <td class="p-3 font-medium text-slate-800">{{ loan.user?.name }} <br><span class="text-xs text-slate-500 font-normal">{{ loan.user?.email }}</span></td>
+              <td class="p-3 font-medium text-slate-800">{{ loan.user?.name }} <br><span class="text-xs text-slate-500 font-normal">{{ loan.user?.email || '' }}</span></td>
               <td class="p-3 font-medium">{{ loan.book?.title }}</td>
               <td class="p-3 text-center">
                 <button @click="returnBook(loan.id)" class="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 text-xs shadow-sm">Verifikasi Kembali</button>
@@ -213,9 +215,9 @@ const processOfflineLoan = () => {
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
            <h2 class="text-xl font-bold text-slate-800">Katalog Buku (Admin)</h2>
-           <p class="text-sm text-slate-500">Kelola ketersediaan buku digital dan fisik</p>
+           <p class="text-sm text-slate-500">Data ini ditarik langsung dari Backend API Anda (Database)</p>
         </div>
-        <button @click="openAddModal" class="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-teal-700 flex items-center gap-2"><Icon name="plus" size="16"/> Tambah Buku</button>
+        <button @click="openAddModal" class="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-teal-700 flex items-center gap-2"><Icon name="plus" size="16"/> Tambah Buku via API</button>
       </div>
       
       <div class="overflow-x-auto">
@@ -244,12 +246,15 @@ const processOfflineLoan = () => {
             </tr>
           </tbody>
         </table>
+        <div v-if="bookStore.books.length === 0" class="text-center py-6 text-slate-500 bg-slate-50">
+          Database buku Anda kosong. Silakan tambah buku baru.
+        </div>
       </div>
 
-      <!-- Modal Tambah Buku -->
+      <!-- Modal Tambah Buku API -->
       <div v-if="showAddModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
          <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl">
-           <h3 class="text-xl font-bold text-slate-800 mb-4">{{ isEditMode ? 'Edit Buku' : 'Tambah Buku Baru' }}</h3>
+           <h3 class="text-xl font-bold text-slate-800 mb-4">{{ isEditMode ? 'Edit Buku (API)' : 'Tambah Buku Baru (API)' }}</h3>
            <form @submit.prevent="saveBook" class="space-y-4">
              <div>
                <label class="block text-sm font-medium text-slate-700 mb-1">Judul Buku</label>
@@ -282,18 +287,16 @@ const processOfflineLoan = () => {
                  <label class="block text-sm font-medium text-slate-700 mb-1">Stok Awal</label>
                  <input v-model.number="newBook.stock" type="number" min="0" required class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-teal-500">
                </div>
-               <div class="w-1/2" v-if="newBook.type === 'digital'">
-                 <label class="block text-sm font-medium text-slate-700 mb-1">File PDF</label>
-                 <input type="file" class="w-full text-sm mt-1 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-teal-50 file:text-teal-700">
-               </div>
              </div>
              <div>
                <label class="block text-sm font-medium text-slate-700 mb-1">Deskripsi Singkat</label>
                <textarea v-model="newBook.description" rows="2" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-teal-500"></textarea>
              </div>
              <div class="pt-4 flex justify-end gap-3 border-t border-slate-100">
-               <button type="button" @click="showAddModal = false" class="px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Batal</button>
-               <button type="submit" class="px-4 py-2 font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg">{{ isEditMode ? 'Simpan Perubahan' : 'Simpan Buku' }}</button>
+               <button type="button" @click="showAddModal = false" :disabled="isProcessing" class="px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-lg disabled:opacity-50">Batal</button>
+               <button type="submit" :disabled="isProcessing" class="px-4 py-2 font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg disabled:opacity-50">
+                  {{ isProcessing ? 'Menyimpan...' : (isEditMode ? 'Simpan Perubahan' : 'Simpan ke Database') }}
+               </button>
              </div>
            </form>
          </div>

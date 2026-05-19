@@ -11,7 +11,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const bookStore = useBookStore()
 
-const book = computed(() => bookStore.books.find(b => b.id === parseInt(route.params.id)))
+const book = computed(() => bookStore.books.find(b => b.id === parseInt(route.params.id) || b.id === route.params.id))
 const canvasRef = ref(null)
 const pdfDoc = ref(null)
 
@@ -23,25 +23,25 @@ const chatMessages = ref([])
 const chatContainer = ref(null)
 
 const initChat = () => {
-  if (!book.value) return;
+  if (!book.value) return
   if (chatMessages.value.length === 0) {
-    chatMessages.value.push({ role: 'assistant', text: `Halo! Saya adalah ✨ AI Study Buddy. Ada yang ingin kamu tanyakan atau diskusikan dari buku "${book.value.title}"?` });
+    chatMessages.value.push({ role: 'assistant', text: `Halo! Saya adalah ✨ AI Study Buddy. Ada yang ingin kamu tanyakan atau diskusikan dari buku "${book.value.title}"?` })
   }
-  showAiChat.value = !showAiChat.value;
+  showAiChat.value = !showAiChat.value
 }
 
 const sendChatMessage = async () => {
-  if(!chatInput.value.trim() || !book.value) return;
-  const userText = chatInput.value;
-  chatMessages.value.push({ role: 'user', text: userText });
-  chatInput.value = '';
-  setTimeout(() => { if(chatContainer.value) chatContainer.value.scrollTop = chatContainer.value.scrollHeight; }, 50);
+  if(!chatInput.value.trim() || !book.value) return
+  const userText = chatInput.value
+  chatMessages.value.push({ role: 'user', text: userText })
+  chatInput.value = ''
+  setTimeout(() => { if(chatContainer.value) chatContainer.value.scrollTop = chatContainer.value.scrollHeight }, 50)
 
-  const prompt = `Sebagai AI tutor membaca untuk buku berjudul "${book.value.title}". Pengguna bertanya: "${userText}". Berikan jawaban yang bersahabat, mendidik, dan singkat (maksimal 3-4 kalimat). Gunakan bahasa Indonesia. Gunakan **teks tebal** untuk menekankan kata kunci.`;
-  const response = await generateText(prompt);
+  const prompt = `Sebagai AI tutor membaca untuk buku berjudul "${book.value.title}". Pengguna bertanya: "${userText}". Berikan jawaban yang bersahabat, mendidik, dan singkat (maksimal 3-4 kalimat). Gunakan bahasa Indonesia. Gunakan **teks tebal** untuk menekankan kata kunci.`
+  const response = await generateText(prompt)
   
-  chatMessages.value.push({ role: 'assistant', text: response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>') });
-  setTimeout(() => { if(chatContainer.value) chatContainer.value.scrollTop = chatContainer.value.scrollHeight; }, 50);
+  chatMessages.value.push({ role: 'assistant', text: response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>') })
+  setTimeout(() => { if(chatContainer.value) chatContainer.value.scrollTop = chatContainer.value.scrollHeight }, 50)
 }
 
 // State
@@ -51,8 +51,8 @@ const isRendering = ref(false)
 const showUpgradeModal = ref(false)
 const error = ref('')
 const bookmarks = computed(() => {
-  if (!book.value || !auth.user) return [];
-  return bookStore.bookmarks[auth.user.id]?.[book.value.id] || [];
+  if (!book.value || !auth.user) return []
+  return bookStore.bookmarks[auth.user.id]?.[book.value.id] || []
 })
 const isBookmarked = computed(() => bookmarks.value.includes(pageNum.value))
 
@@ -66,52 +66,52 @@ onMounted(() => {
 
   if (window.pdfjsLib) {
     window.pdfjsLib.getDocument(book.value.pdfUrl).promise.then(pdf => {
-      pdfDoc.value = pdf;
-      renderPage(pageNum.value);
+      pdfDoc.value = pdf
+      renderPage(pageNum.value)
     }).catch(err => {
-      error.value = "Gagal memuat file PDF. Mungkin terhalang oleh kebijakan CORS browser.";
-    });
+      error.value = "Gagal memuat file PDF. Pastikan URL valid atau PDF tersedia."
+    })
   }
 })
 
 const renderPage = (num) => {
-  if (!pdfDoc.value || isRendering.value || !canvasRef.value) return;
+  if (!pdfDoc.value || isRendering.value || !canvasRef.value) return
   
   // FREE USER RESTRICTION
   if (num > 3 && auth.user?.membership !== 'premium') {
-    showUpgradeModal.value = true;
-    pageNum.value = 3; 
-    return;
+    showUpgradeModal.value = true
+    pageNum.value = 3 
+    return
   }
 
-  isRendering.value = true;
+  isRendering.value = true
   pdfDoc.value.getPage(num).then(page => {
-    const viewport = page.getViewport({ scale: scale.value });
-    const canvas = canvasRef.value;
-    const ctx = canvas.getContext('2d');
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
+    const viewport = page.getViewport({ scale: scale.value })
+    const canvas = canvasRef.value
+    const ctx = canvas.getContext('2d')
+    canvas.height = viewport.height
+    canvas.width = viewport.width
 
     page.render({ canvasContext: ctx, viewport: viewport }).promise.then(() => {
-      isRendering.value = false;
-      if (auth.user?.membership === 'premium') bookStore.saveProgress(auth.user?.id, book.value.id, num);
-    });
-  });
+      isRendering.value = false
+      if (auth.user?.membership === 'premium') bookStore.saveProgress(auth.user?.id, book.value.id, num)
+    })
+  })
 }
 
-const prevPage = () => { if (pageNum.value > 1) { pageNum.value--; renderPage(pageNum.value); } }
-const nextPage = () => { if (pageNum.value < pdfDoc.value.numPages) { pageNum.value++; renderPage(pageNum.value); } }
-const zoomOut = () => { scale.value -= 0.2; renderPage(pageNum.value); }
-const zoomIn = () => { scale.value += 0.2; renderPage(pageNum.value); }
+const prevPage = () => { if (pageNum.value > 1) { pageNum.value--; renderPage(pageNum.value) } }
+const nextPage = () => { if (pageNum.value < pdfDoc.value.numPages) { pageNum.value++; renderPage(pageNum.value) } }
+const zoomOut = () => { scale.value -= 0.2; renderPage(pageNum.value) }
+const zoomIn = () => { scale.value += 0.2; renderPage(pageNum.value) }
 
 const toggleBookmark = () => {
-  if (auth.user?.membership !== 'premium') return showUpgradeModal.value = true;
-  bookStore.toggleBookmark(auth.user?.id, book.value.id, pageNum.value);
+  if (auth.user?.membership !== 'premium') return showUpgradeModal.value = true
+  bookStore.toggleBookmark(auth.user?.id, book.value.id, pageNum.value)
 }
 
 const download = () => {
-   if (auth.user?.membership !== 'premium') return showUpgradeModal.value = true;
-   alert("Mengunduh PDF...");
+   if (auth.user?.membership !== 'premium') return showUpgradeModal.value = true
+   alert("Mengunduh PDF...")
 }
 </script>
 

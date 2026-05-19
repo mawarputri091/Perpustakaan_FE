@@ -13,36 +13,37 @@ const auth = useAuthStore()
 const bookStore = useBookStore()
 const loanStore = useLoanStore()
 
-const book = computed(() => bookStore.books.find(b => b.id === parseInt(route.params.id)))
+const book = computed(() => bookStore.books.find(b => b.id === parseInt(route.params.id) || b.id === route.params.id))
 const msg = ref('')
 
 const isPending = computed(() => {
-  if (!book.value) return false;
-  return loanStore.loans.some(l => l.userId === auth.user?.id && l.bookId === book.value.id && l.status === 'pending');
-});
+  if (!book.value) return false
+  return loanStore.loans.some(l => l.userId === auth.user?.id && l.bookId === book.value.id && l.status === 'pending')
+})
 
 const isBorrowedActive = computed(() => {
-  if (!book.value) return false;
-  return loanStore.loans.some(l => l.userId === auth.user?.id && l.bookId === book.value.id && l.status === 'active');
-});
+  if (!book.value) return false
+  return loanStore.loans.some(l => l.userId === auth.user?.id && l.bookId === book.value.id && l.status === 'active')
+})
 
+// AI Features
 const { generateText, isGenerating } = useGemini()
 const aiInsights = ref('')
 
 const fetchInsights = async () => {
-  if (!book.value) return;
-  aiInsights.value = '';
-  const prompt = `Berikan ringkasan singkat, 3 poin penting yang dipelajari, dan alasan kenapa buku "${book.value.title}" karangan ${book.value.author} ini sangat menarik untuk dibaca. Jawab menggunakan bahasa Indonesia, buat paragraf yang natural. Gunakan **teks tebal** untuk poin penting.`;
-  const response = await generateText(prompt);
-  aiInsights.value = response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+  if (!book.value) return
+  aiInsights.value = ''
+  const prompt = `Berikan ringkasan singkat, 3 poin penting yang dipelajari, dan alasan kenapa buku "${book.value.title}" karangan ${book.value.author} ini sangat menarik untuk dibaca. Jawab menggunakan bahasa Indonesia, buat paragraf yang natural. Gunakan **teks tebal** untuk poin penting.`
+  const response = await generateText(prompt)
+  aiInsights.value = response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')
 }
 
-const handleAction = () => {
-  if (!book.value) return;
+const handleAction = async () => {
+  if (!book.value) return
   if (book.value.type === 'digital') {
     router.push('/read/' + book.value.id)
   } else {
-    const success = loanStore.requestLoan(auth.user?.id, book.value.id)
+    const success = await loanStore.requestLoan(auth.user?.id, book.value.id)
     if (success) {
       msg.value = 'Permintaan berhasil dikirim. Menunggu persetujuan Admin.'
     } else {
@@ -72,7 +73,7 @@ const submitReview = () => {
   <div v-if="book" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
     <div class="p-6 lg:p-8 flex flex-col md:flex-row gap-8">
       <div class="w-full md:w-1/3 lg:w-1/4 shrink-0">
-        <img :src="book.cover" alt="Cover" class="w-full rounded-xl shadow-md border border-slate-100 aspect-[3/4] object-cover">
+        <img :src="book.cover" alt="Cover" class="w-full rounded-xl shadow-md border border-slate-100 aspect-[3/4] object-cover bg-slate-200">
         
         <div v-if="book.type === 'physical'" class="mt-4 p-4 rounded-xl text-center font-medium border" :class="book.stock > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100'">
           {{ book.stock > 0 ? 'Stok Tersedia: ' + book.stock : 'Stok Kosong' }}
@@ -115,7 +116,7 @@ const submitReview = () => {
         
         <div class="flex items-center gap-1 text-amber-500 mb-6 bg-amber-50 w-max px-3 py-1.5 rounded-lg border border-amber-100">
           <Icon name="star" size="18" />
-          <span class="font-bold">{{ book.rating }} / 5.0</span>
+          <span class="font-bold">{{ book.rating || '0.0' }} / 5.0</span>
           <span class="text-amber-700/60 ml-1">({{ book.reviews?.length || 0 }} Ulasan)</span>
         </div>
         

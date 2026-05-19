@@ -25,7 +25,7 @@ const myBookmarks = computed(() => {
    const results = []
    for(const bookId in bks) {
       if(bks[bookId].length > 0) {
-         const book = bookStore.books.find(b => b.id === parseInt(bookId))
+         const book = bookStore.books.find(b => b.id === parseInt(bookId) || b.id === bookId)
          if(book) results.push({ book, pages: bks[bookId] })
       }
    }
@@ -33,7 +33,7 @@ const myBookmarks = computed(() => {
 })
 
 const formatDate = (ds) => {
-  if (!ds) return '-';
+  if (!ds) return '-'
   return new Date(ds).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 </script>
@@ -67,8 +67,8 @@ const formatDate = (ds) => {
             <tbody class="divide-y divide-slate-100">
               <tr v-for="loan in history" :key="loan.id" class="hover:bg-slate-50 transition">
                 <td class="p-4 font-medium text-slate-800 flex items-center gap-3">
-                  <img :src="loan.book?.cover" class="w-10 h-14 object-cover rounded shadow-sm">
-                  {{ loan.book?.title }}
+                  <img :src="loan.book?.cover" class="w-10 h-14 object-cover rounded shadow-sm bg-slate-200">
+                  {{ loan.book?.title || 'Buku Telah Dihapus' }}
                 </td>
                 <td class="p-4 text-slate-600 text-sm">{{ formatDate(loan.borrowDate || loan.requestDate) }}</td>
                 <td class="p-4 text-slate-600 text-sm">{{ formatDate(loan.dueDate) }}</td>
@@ -91,7 +91,7 @@ const formatDate = (ds) => {
          </div>
          <div class="space-y-4" v-else>
             <div v-for="item in myBookmarks" :key="item.book.id" class="border border-slate-200 rounded-xl p-4 flex gap-4 items-center">
-               <img :src="item.book.cover" class="w-12 h-16 object-cover rounded shadow-sm">
+               <img :src="item.book.cover" class="w-12 h-16 object-cover rounded shadow-sm bg-slate-200">
                <div class="flex-grow">
                   <h4 class="font-bold text-slate-800">{{ item.book.title }}</h4>
                   <div class="text-sm text-slate-500 mt-1 flex gap-2">

@@ -1,13 +1,13 @@
 <script setup>
 import { useAuthStore } from '../stores/authStore'
 import { useRouter } from 'vue-router'
-import Icon from './Icon.vue' // Pastikan file Icon.vue dibuat
+import Icon from './Icon.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
 
-const handleLogout = () => {
-  auth.logout()
+const handleLogout = async () => {
+  await auth.logout()
   router.push('/login')
 }
 </script>
@@ -50,10 +50,15 @@ const handleLogout = () => {
     
     <div class="mt-auto p-4 border-t border-slate-800">
       <div class="bg-slate-800 rounded-lg p-3 mb-3" v-if="auth.user">
-        <div class="text-sm text-white font-medium truncate">{{ auth.user.name }}</div>
+        <div class="text-sm text-white font-medium truncate">{{ auth.user.username || auth.user.name }}</div>
         <div class="flex items-center justify-between mt-1">
           <span class="text-xs text-slate-400 uppercase">{{ auth.user.role }}</span>
-          <span v-if="auth.user.membership === 'premium'" class="text-[10px] bg-amber-500 text-slate-900 px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-1">
+          
+          <!-- PENYESUAIAN BADGE MEMBERSHIP (GOD, Premium, Free) -->
+          <span v-if="auth.user.admin === 'GOD'" class="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-1 shadow-[0_0_8px_rgba(79,70,229,0.6)] border border-indigo-400/50">
+            <Icon name="crown" size="10"/> GOD
+          </span>
+          <span v-else-if="auth.user.membership === 'premium'" class="text-[10px] bg-amber-500 text-slate-900 px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-1">
             <Icon name="crown" size="10"/> Premium
           </span>
           <span v-else class="text-[10px] bg-slate-600 text-white px-1.5 py-0.5 rounded font-bold uppercase">

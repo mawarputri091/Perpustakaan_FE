@@ -5,17 +5,21 @@ import { useAuthStore } from '../stores/authStore'
 
 const auth = useAuthStore()
 const router = useRouter()
-
-const email = ref('budi@lib.com')
-const password = ref('user')
+const username = ref('')
+const password = ref('')
 const error = ref('')
+const isLoading = ref(false)
 
-const doLogin = () => {
-  if (auth.login(email.value, password.value)) {
-    router.push('/dashboard')
+const doLogin = async () => {
+  isLoading.value = true
+  error.value = ''
+  const result = await auth.login(username.value, password.value)
+  if (result.success) {
+     router.push('/dashboard')
   } else {
-    error.value = 'Email atau password salah'
+     error.value = result.message || 'Username atau password salah'
   }
+  isLoading.value = false
 }
 </script>
 
@@ -31,21 +35,19 @@ const doLogin = () => {
       </div>
       <form @submit.prevent="doLogin" class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
-          <input v-model="email" type="email" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 outline-none" required>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Username</label>
+          <input v-model="username" type="text" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 outline-none" required>
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
           <input v-model="password" type="password" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 outline-none" required>
         </div>
         <div v-if="error" class="text-red-500 text-sm text-center bg-red-50 p-2 rounded">{{ error }}</div>
-        <button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 rounded-lg transition shadow-md shadow-teal-600/20">Masuk</button>
+        <button type="submit" :disabled="isLoading" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 rounded-lg transition shadow-md shadow-teal-600/20 disabled:opacity-70 flex justify-center items-center">
+          <span v-if="isLoading" class="animate-pulse">Memproses...</span>
+          <span v-else>Masuk via API</span>
+        </button>
       </form>
-      <div class="mt-6 text-xs text-slate-400 text-center space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-100">
-        <p>Admin: admin@lib.com / admin</p>
-        <p>User (Free): budi@lib.com / user</p>
-        <p>User (Premium): siti@lib.com / user</p>
-      </div>
     </div>
   </div>
 </template>

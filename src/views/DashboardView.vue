@@ -16,20 +16,20 @@ const stats = computed(() => {
     return [
       { label: 'Total Buku', value: bookStore.books.length, icon: 'book', color: 'text-teal-600', bg: 'bg-teal-100' },
       { label: 'Peminjaman Aktif & Pending', value: loanStore.loans.filter(l => l.status === 'active' || l.status === 'pending').length, icon: 'bookmark', color: 'text-amber-600', bg: 'bg-amber-100' },
-      { label: 'Total Member', value: mockUsers.length, icon: 'users', color: 'text-blue-600', bg: 'bg-blue-100' }
-    ];
+      { label: 'Total Member', value: 3, icon: 'users', color: 'text-blue-600', bg: 'bg-blue-100' }
+    ]
   } else if (auth.user) {
-    const userL = loanStore.userLoans(auth.user.id);
+    const userL = loanStore.userLoans(auth.user.id)
     return [
       { label: 'Buku Dipinjam', value: userL.filter(l => l.status === 'active').length, icon: 'book', color: 'text-teal-600', bg: 'bg-teal-100' },
       { label: 'Menunggu Persetujuan', value: userL.filter(l => l.status === 'pending').length, icon: 'bookmark', color: 'text-amber-600', bg: 'bg-amber-100' },
       { label: 'Buku Dikembalikan', value: userL.filter(l => l.status === 'returned').length, icon: 'bookmark', color: 'text-blue-600', bg: 'bg-blue-100' }
-    ];
+    ]
   }
-  return [];
-});
+  return []
+})
 
-const recentBooks = computed(() => [...bookStore.books].reverse().slice(0, 4));
+const recentBooks = computed(() => [...bookStore.books].reverse().slice(0, 4))
 </script>
 
 <template>
@@ -37,10 +37,11 @@ const recentBooks = computed(() => [...bookStore.books].reverse().slice(0, 4));
     <!-- Hero Section -->
     <div class="bg-teal-600 rounded-3xl p-8 md:p-10 text-white mb-8 shadow-lg shadow-teal-600/20 relative overflow-hidden">
       <div class="relative z-10 w-full md:w-2/3">
-        <h1 class="text-3xl md:text-4xl font-bold mb-4">Selamat Datang di EduLibrary, {{ auth.user?.name.split(' ')[0] }}! 👋</h1>
+        <h1 class="text-3xl md:text-4xl font-bold mb-4">Selamat Datang di EduLibrary, {{ auth.user?.username || auth.user?.name }}! 👋</h1>
         <p class="text-teal-100 mb-6 text-lg">Jelajahi ribuan buku digital berkualitas dan koleksi buku fisik langsung dari perpustakaan kami. Kembangkan pengetahuanmu hari ini.</p>
         <router-link to="/catalog" class="inline-block bg-white text-teal-700 font-bold px-6 py-3 rounded-xl hover:bg-teal-50 transition shadow-sm">Mulai Membaca</router-link>
       </div>
+      <!-- Dekorasi -->
       <div class="absolute right-0 bottom-0 opacity-20 transform translate-x-1/4 translate-y-1/4">
         <Icon name="book" size="250" />
       </div>
@@ -57,20 +58,20 @@ const recentBooks = computed(() => [...bookStore.books].reverse().slice(0, 4));
 
     <!-- Info Mode -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-4 items-start">
+       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-4 items-start">
           <div class="p-3 bg-teal-100 text-teal-600 rounded-xl shrink-0"><Icon name="monitor" size="24"/></div>
           <div>
             <h3 class="font-bold text-slate-800 text-lg mb-1">Mode Online (E-Book)</h3>
-            <p class="text-slate-500 text-sm">Baca buku digital langsung di browser Anda dengan PDF Reader interaktif.</p>
+            <p class="text-slate-500 text-sm">Baca buku digital langsung di browser Anda dengan PDF Reader interaktif. Tersedia fitur navigasi dan bookmark.</p>
           </div>
-        </div>
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-4 items-start">
+       </div>
+       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-4 items-start">
           <div class="p-3 bg-amber-100 text-amber-600 rounded-xl shrink-0"><Icon name="book" size="24"/></div>
           <div>
             <h3 class="font-bold text-slate-800 text-lg mb-1">Mode Offline (Fisik)</h3>
             <p class="text-slate-500 text-sm">Ajukan permohonan buku fisik, ambil di perpustakaan setelah disetujui, dan pantau riwayat dengan mudah.</p>
           </div>
-        </div>
+       </div>
     </div>
 
     <!-- Statistik -->
@@ -92,8 +93,11 @@ const recentBooks = computed(() => [...bookStore.books].reverse().slice(0, 4));
         <h2 class="text-xl font-bold text-slate-800">Buku Terbaru</h2>
         <router-link to="/catalog" class="text-sm text-teal-600 hover:text-teal-700 font-medium">Lihat semua</router-link>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div v-if="recentBooks.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <BookCard v-for="book in recentBooks" :key="book.id" :book="book" />
+      </div>
+      <div v-else class="text-center py-10 bg-white border border-slate-200 rounded-xl">
+        <p class="text-slate-500">Belum ada data buku dari Database.</p>
       </div>
     </div>
   </div>
