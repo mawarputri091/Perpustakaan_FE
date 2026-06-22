@@ -1,10 +1,16 @@
 <script setup>
+import { computed } from 'vue'
 import { useAuthStore } from '../stores/authStore'
 import { useRouter } from 'vue-router'
 import Icon from './Icon.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
+
+// Memudahkan pengecekan agar tidak salah tulis di template
+const isAdmin = computed(() =>
+  auth.user?.role?.toLowerCase() === 'admin'
+)
 
 const handleLogout = async () => {
   await auth.logout()
@@ -20,6 +26,7 @@ const handleLogout = async () => {
         <span>EduLibrary</span>
       </div>
       
+      <!-- Menu Utama: Muncul untuk SEMUA (User & Admin) -->
       <div class="space-y-1 mb-8">
         <p class="text-xs uppercase font-bold text-slate-500 mb-2 px-3">Menu Utama</p>
         <router-link to="/dashboard" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 hover:text-white transition" active-class="bg-teal-600/20 text-teal-400">
@@ -30,7 +37,8 @@ const handleLogout = async () => {
         </router-link>
       </div>
 
-      <div v-if="auth.user?.role === 'user'" class="space-y-1 mb-8">
+      <!-- Aktivitas Saya: Muncul untuk USER saja -->
+      <div v-if="!isAdmin" class="space-y-1 mb-8">
         <p class="text-xs uppercase font-bold text-slate-500 mb-2 px-3">Aktivitas Saya</p>
         <router-link to="/history" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 hover:text-white transition" active-class="bg-teal-600/20 text-teal-400">
           <Icon name="bookmark" size="18" /> Riwayat
@@ -40,7 +48,8 @@ const handleLogout = async () => {
         </router-link>
       </div>
 
-      <div v-if="auth.user?.role === 'admin'" class="space-y-1 mb-8">
+      <!-- Panel Admin: Muncul hanya untuk ADMIN -->
+      <div v-if="isAdmin" class="space-y-1 mb-8">
         <p class="text-xs uppercase font-bold text-slate-500 mb-2 px-3">Panel Admin</p>
         <router-link to="/admin/books" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 hover:text-white transition" active-class="bg-teal-600/20 text-teal-400">
           <Icon name="book" size="18" /> Dashboard Admin
@@ -54,8 +63,8 @@ const handleLogout = async () => {
         <div class="flex items-center justify-between mt-1">
           <span class="text-xs text-slate-400 uppercase">{{ auth.user.role }}</span>
           
-          <!-- PENYESUAIAN BADGE MEMBERSHIP (GOD, Premium, Free) -->
-          <span v-if="auth.user.admin === 'GOD'" class="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-1 shadow-[0_0_8px_rgba(79,70,229,0.6)] border border-indigo-400/50">
+          <!-- Perbaikan logika Badge -->
+          <span v-if="isAdmin" class="text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-1 shadow-[0_0_8px_rgba(79,70,229,0.6)] border border-indigo-400/50">
             <Icon name="crown" size="10"/> GOD
           </span>
           <span v-else-if="auth.user.membership === 'premium'" class="text-[10px] bg-amber-500 text-slate-900 px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-1">

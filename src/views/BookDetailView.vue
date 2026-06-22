@@ -17,13 +17,21 @@ const book = computed(() => bookStore.books.find(b => b.id === parseInt(route.pa
 const msg = ref('')
 
 const isPending = computed(() => {
-  if (!book.value) return false
-  return loanStore.loans.some(l => l.userId === auth.user?.id && l.bookId === book.value.id && l.status === 'pending')
+  return loanStore.loans.some(
+    l =>
+      String(l.siswa_id) === String(auth.user?.id) &&
+      String(l.buku_id) === String(book.value.id) &&
+      l.status === 'pending'
+  )
 })
 
 const isBorrowedActive = computed(() => {
-  if (!book.value) return false
-  return loanStore.loans.some(l => l.userId === auth.user?.id && l.bookId === book.value.id && l.status === 'active')
+  return loanStore.loans.some(
+    l =>
+      String(l.siswa_id) === String(auth.user?.id) &&
+      String(l.buku_id) === String(book.value.id) &&
+      l.status === 'dipinjam'
+  )
 })
 
 // AI Features

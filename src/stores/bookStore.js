@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { mockBooks } from '../data/mockData'
 
-const API_URL = 'http://172.19.136.62:3000'
+// Sesuaikan IP Backend Anda
+const API_URL = 'http://192.168.1.11:3000'
 
 const getHeaders = () => {
   const token = localStorage.getItem('api_token');
@@ -17,86 +17,142 @@ export const useBookStore = defineStore('book', () => {
   const bookmarks = ref(JSON.parse(localStorage.getItem('bookmarks')) || {})
   const readingProgress = ref(JSON.parse(localStorage.getItem('progress')) || {})
 
- const fetchBooks = async () => {
+  // GET: Menarik data dari Database
+  const fetchBooks = async () => {
     try {
       const res = await fetch(`${API_URL}/buku`, { headers: getHeaders() })
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
       const result = await res.json()
       
-      // Ambil array datanya dari response backend
       const rawData = result.data || result
       
-      // MAPPING DATA: Menyesuaikan nama kolom Database dengan yang dibaca Frontend
-      books.value = rawData.map(b => {
-        // Logika untuk menampilkan gambar (Menggabungkan IP Backend dengan Path Gambar)
-        let imageUrl = 'https://via.placeholder.com/300x400?text=No+Cover'
-        if (b.foto_buku) {
-          // Jika backend mengembalikan link lengkap (http...), pakai langsung. 
-          // Jika tidak, gabungkan dengan API_URL Anda.
-          imageUrl = b.foto_buku.startsWith('http') ? b.foto_buku : `${API_URL}/${b.foto_buku}`
-        }
+      // Mapping dari Database Backend ke Frontend Vue
+books.value = rawData.map(b => {
+  // Ganti baris pengecekan namaFile lama kamu dengan logika pembersihan ini:
+const rawCover = b.foto_buku || b.cover;
+let imageUrl = 'https://via.placeholder.com/300x400?text=No+Cover'
 
-        return {
-          id: b.id, 
-          // Ambil dari "nama_buku" sesuai Postman
-          title: b.nama_buku || 'Judul Kosong', 
-          author: b.penulis || 'Penulis Tidak Diketahui', // Ganti 'penulis' jika di DB namanya lain
-          cover: imageUrl,
-          // Ambil dari "jenis_buku" sesuai Postman
-          category: b.jenis_buku || 'Umum', 
-          type: 'physical', // Set default buku fisik karena ada data "stok" di DB
-          // Ambil dari "stok" sesuai Postman
-          stock: b.stok || 0, 
-          description: b.deskripsi || 'Tidak ada deskripsi.', // Ganti 'deskripsi' jika di DB namanya lain
-          pdfUrl: '',
-          rating: 0,
-          reviews: []
-        }
-      })
+if (rawCover) {
+  // 🌟 JIKA DATABASE TERLANJUR BERISI 'localhost:3000', KITA POTONG DAN AMBIL NAMA FILE-NYA SAJA
+  if (rawCover.includes('localhost:3000')) {
+    const namaFileSaja = rawCover.split('/').pop(); // Mengambil nama file paling belakang
+    imageUrl = `${API_URL}/uploads/${namaFileSaja}`;
+  } 
+  // Jika dari DB sudah berupa URL IP yang benar
+  else if (rawCover.startsWith('http')) {
+    imageUrl = rawCover;
+  } 
+  // Jika hanya nama file saja
+  else {
+    imageUrl = `${API_URL}/uploads/${rawCover}`;
+  }
+}
+
+  return {
+    id: b.id, 
+    title: b.nama_buku || 'Judul Kosong', // Menggunakan nama_buku sesuai JSON Postman
+    author: b.penulis || 'Penulis Tidak Diketahui',
+    cover: imageUrl,
+    category: b.jenis_buku || 'Umum', 
+    type: 'physical', 
+    
+    // 📝 PERBAIKAN PEMETAAN DI SINI:
+    // Gunakan parseFloat atau Number karena di Postman harganya berupa string "1000.00"
+    harga: b.harga_buku ? Number(b.harga_buku) : 0, 
+    stock: b.stok !== undefined ? Number(b.stok) : 0,
+    
+    description: b.deskripsi || 'Tidak ada deskripsi.',
+    pdfUrl: '',
+    rating: 0,
+    reviews: []
+  }
+})
       
     } catch (e) { 
       console.warn('[API Offline] Gagal memuat GET /buku.', e.message)
-      // Kalau API mati, fallback ke mockBooks
-      // books.value = JSON.parse(JSON.stringify(mockBooks)) 
     }
   }
-  
+
+// POST: Menambah buku ke Database (Mendukung Upload File Gambar)
   const createBook = async (bookData) => {
     try {
+      const token = localStorage.getItem('api_token');
+      
+      // Menggunakan FormData agar file gambar bisa terkirim ke BE
+      const formData = new FormData();
+      formData.append('nama_buku', bookData.title);
+      formData.append('jenis_buku', bookData.category);
+      formData.append('penulis', bookData.author || 'Admin');
+      formData.append('deskripsi', bookData.description || '');
+      formData.append('stok', Number(bookData.stock));
+      formData.append('harga_buku', Number(bookData.harga) || 0);
+
+      // Jika user mengupload gambar baru, masukkan filenya
+      if (bookData.file) {
+        formData.append('foto_buku', bookData.file); // Menyesuaikan nama kolom upload file di BE
+      } else {
+        formData.append('foto_buku', bookData.cover || '');
+      }
+
       const res = await fetch(`${API_URL}/buku`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(bookData)
+        headers: {
+          // JANGAN gunakan 'Content-Type': 'application/json' jika mengirim FormData
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: formData // Kirim sebagai formData
       })
-      if (!res.ok) throw new Error('Gagal tambah buku')
-      await fetchBooks()
+      
+      if (!res.ok) throw new Error('Gagal tambah buku ke API')
+      
+      await fetchBooks() // Refresh katalog
       return true
     } catch (e) { 
-      console.warn('[API Offline] Gagal POST /buku. Menyimpan ke state lokal.')
-      bookData.id = Date.now()
-      books.value.push(bookData)
-      return true
+      console.error('[API Error] Gagal POST /buku:', e.message)
+      return false
     }
   }
 
-  const editBook = async (id, bookData) => {
-    try {
-      const res = await fetch(`${API_URL}/buku/${id}`, {
-        method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify(bookData)
-      })
-      if (!res.ok) throw new Error('Gagal edit buku')
-      await fetchBooks()
-      return true
-    } catch (e) { 
-      console.warn('[API Offline] Gagal PUT /buku/:id. Mengedit di state lokal.')
-      const idx = books.value.findIndex(b => b.id === id)
-      if (idx !== -1) books.value[idx] = { ...books.value[idx], ...bookData }
-      return true
-    }
-  }
+const editBook = async (id, bookData) => {
+  try {
+    const token = localStorage.getItem('api_token');
+    const formData = new FormData();
+    
+    // Sesuaikan mapping key dengan req.body yang dibaca di buku.service.js
+    formData.append('nama_buku', bookData.title || bookData.nama_buku);
+    formData.append('jenis_buku', bookData.category || bookData.jenis_buku);
+    formData.append('stok', String(bookData.stock ?? bookData.stok ?? 0));
+    formData.append('harga_buku', String(bookData.harga || bookData.harga_buku || 0));
 
+    if (bookData.file) {
+      formData.append('foto_buku', bookData.file);
+    } else if (bookData.cover || bookData.foto_buku) {
+      const currentCover = bookData.cover || bookData.foto_buku;
+      const namaFileLama = currentCover.includes('/') ? currentCover.split('/').pop() : currentCover;
+      formData.append('foto_buku', namaFileLama);
+    }
+
+    const res = await fetch(`${API_URL}/buku/${id}`, {
+      method: 'PUT',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: formData
+    });
+    
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || 'Gagal menyimpan');
+    
+    await fetchBooks();
+    return true;
+  } catch (e) {
+    console.error('[Frontend Error]', e.message);
+    alert(`Gagal Update: ${e.message}`); // Biar memunculkan alert pesan asli dari BE (seperti INVALID_TOKEN)
+    return false;
+  }
+}
+
+  // DELETE: Menghapus buku dari Database
   const removeBook = async (id) => {
     try {
       const res = await fetch(`${API_URL}/buku/${id}`, { 
@@ -104,15 +160,16 @@ export const useBookStore = defineStore('book', () => {
         headers: getHeaders()
       })
       if (!res.ok) throw new Error('Gagal hapus buku')
+      
       await fetchBooks()
       return true
     } catch (e) { 
-      console.warn('[API Offline] Gagal DELETE /buku/:id. Menghapus dari state lokal.')
-      books.value = books.value.filter(b => b.id !== id)
-      return true
+      console.error('[API Error] Gagal DELETE /buku:', e.message)
+      return false
     }
   }
 
+  // --- Fungsi Tambahan ---
   const saveProgress = (userId, bookId, page) => {
     if (!readingProgress.value[userId]) readingProgress.value[userId] = {}
     readingProgress.value[userId][bookId] = page

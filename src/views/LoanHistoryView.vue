@@ -13,10 +13,15 @@ const activeTab = ref('loans')
 
 const history = computed(() => {
   if (!auth.user) return []
-  return loanStore.userLoans(auth.user.id).map(loan => ({
-    ...loan,
-    book: bookStore.books.find(b => b.id === loan.bookId)
-  })).reverse()
+
+  return loanStore.userLoans(auth.user.id)
+    .map(loan => ({
+      ...loan,
+      book: bookStore.books.find(
+        b => String(b.id) === String(loan.buku_id)
+      )
+    }))
+    .reverse()
 })
 
 const myBookmarks = computed(() => {
@@ -68,14 +73,14 @@ const formatDate = (ds) => {
               <tr v-for="loan in history" :key="loan.id" class="hover:bg-slate-50 transition">
                 <td class="p-4 font-medium text-slate-800 flex items-center gap-3">
                   <img :src="loan.book?.cover" class="w-10 h-14 object-cover rounded shadow-sm bg-slate-200">
-                  {{ loan.book?.title || 'Buku Telah Dihapus' }}
+                  {{ loan.book?.title || loan.nama_buku || 'Buku Telah Dihapus' }}
                 </td>
-                <td class="p-4 text-slate-600 text-sm">{{ formatDate(loan.borrowDate || loan.requestDate) }}</td>
-                <td class="p-4 text-slate-600 text-sm">{{ formatDate(loan.dueDate) }}</td>
+                <td class="p-4 text-slate-600 text-sm">{{ formatDate(loan.tanggal_pinjam) }}</td>
+                <td class="p-4 text-slate-600 text-sm">{{ formatDate(loan.tanggal_kembali) }}</td>
                 <td class="p-4 text-right">
                   <span v-if="loan.status === 'pending'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">Menunggu Persetujuan</span>
-                  <span v-else-if="loan.status === 'active'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-teal-100 text-teal-700 border border-teal-200">Sedang Dipinjam</span>
-                  <span v-else-if="loan.status === 'returned'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">Dikembalikan</span>
+                  <span v-else-if="loan.status === 'dipinjam'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-teal-100 text-teal-700 border border-teal-200">Sedang Dipinjam</span>
+                  <span v-else-if="loan.status === 'dikembalikan'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">Dikembalikan</span>
                   <span v-else-if="loan.status === 'rejected'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">Ditolak</span>
                 </td>
               </tr>
