@@ -10,13 +10,28 @@ const searchQuery = ref('')
 const filterMode = ref('all')
 const filterCategory = ref('all')
 
-const categories = computed(() => ['all', ...new Set(bookStore.books.map(b => b.category))])
+// 🛠️ FIX 1: Sesuaikan pemetaan kategori dengan nama field database asli (jenis_buku)
+const categories = computed(() => ['all', ...new Set(bookStore.books.map(b => b.jenis_buku || b.category))])
 
 const filteredBooks = computed(() => {
   return bookStore.books.filter(b => {
-      const matchSearch = (b.title || '').toLowerCase().includes(searchQuery.value.toLowerCase()) || (b.author || '').toLowerCase().includes(searchQuery.value.toLowerCase())
-      const matchMode = filterMode.value === 'all' || b.type === filterMode.value
-      const matchCat = filterCategory.value === 'all' || b.category === filterCategory.value
+      // 1. Logika Pencarian (Mendukung fallback nama_buku dari DB atau title dari mock)
+      const title = b.nama_buku || b.title || ''
+      const author = b.penulis || b.author || ''
+      const matchSearch = title.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
+                          author.toLowerCase().includes(searchQuery.value.toLowerCase())
+
+      // 2. Logika Virtual Type (E-book vs Fisik) tanpa mengubah Database
+      // Jika field pdf_buku terisi string URL, otomatis dianggap sebagai digital (E-Book)
+      const hasPdf = b.pdf_buku && b.pdf_buku !== '' && b.pdf_buku !== 'null'
+      const virtualBookType = hasPdf ? 'digital' : 'physical'
+      
+      const matchMode = filterMode.value === 'all' || virtualBookType === filterMode.value
+
+      // 3. Logika Filter Kategori (Menyesuaikan dengan field jenis_buku)
+      const currentCategory = b.jenis_buku || b.category
+      const matchCat = filterCategory.value === 'all' || currentCategory === filterCategory.value
+
       return matchSearch && matchMode && matchCat
   })
 })

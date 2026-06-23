@@ -15,15 +15,19 @@ const stats = computed(() => {
   if (auth.user?.role === 'admin') {
     return [
       { label: 'Total Buku', value: bookStore.books.length, icon: 'book', color: 'text-teal-600', bg: 'bg-teal-100' },
-      { label: 'Peminjaman Aktif & Pending', value: loanStore.loans.filter(l => l.status === 'active' || l.status === 'pending').length, icon: 'bookmark', color: 'text-amber-600', bg: 'bg-amber-100' },
+      
+      // 🛠️ FIX UNTUK ADMIN: Sesuaikan string status dengan database backend Anda
+      { label: 'Peminjaman Aktif & Pending', value: loanStore.loans.filter(l => l.status === 'dipinjam' || l.status === 'menunggu').length, icon: 'bookmark', color: 'text-amber-600', bg: 'bg-amber-100' },
+      
       { label: 'Total Member', value: 3, icon: 'users', color: 'text-blue-600', bg: 'bg-blue-100' }
     ]
   } else if (auth.user) {
     const userL = loanStore.userLoans(auth.user.id)
     return [
-      { label: 'Buku Dipinjam', value: userL.filter(l => l.status === 'active').length, icon: 'book', color: 'text-teal-600', bg: 'bg-teal-100' },
-      { label: 'Menunggu Persetujuan', value: userL.filter(l => l.status === 'pending').length, icon: 'bookmark', color: 'text-amber-600', bg: 'bg-amber-100' },
-      { label: 'Buku Dikembalikan', value: userL.filter(l => l.status === 'returned').length, icon: 'bookmark', color: 'text-blue-600', bg: 'bg-blue-100' }
+      // 🛠️ FIX UNTUK USER: Sesuaikan juga status untuk halaman dashboard user/siswa
+      { label: 'Buku Dipinjam', value: userL.filter(l => l.status === 'dipinjam').length, icon: 'book', color: 'text-teal-600', bg: 'bg-teal-100' },
+      { label: 'Menunggu Persetujuan', value: userL.filter(l => l.status === 'menunggu').length, icon: 'bookmark', color: 'text-amber-600', bg: 'bg-amber-100' },
+      { label: 'Buku Dikembalikan', value: userL.filter(l => l.status === 'dikembalikan').length, icon: 'bookmark', color: 'text-blue-600', bg: 'bg-blue-100' }
     ]
   }
   return []

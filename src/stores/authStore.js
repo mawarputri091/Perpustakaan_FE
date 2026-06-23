@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 // 1. MENGUBAH URL KE IP BACKEND ANDA (Sesuai Postman)
-const API_URL = 'http://192.168.1.11:3000'
+const API_URL = 'http://192.168.1.3:3000'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(JSON.parse(localStorage.getItem('currentUser')) || null)

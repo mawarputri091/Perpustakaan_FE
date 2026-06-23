@@ -16,11 +16,16 @@ const loanStore = useLoanStore()
 const book = computed(() => bookStore.books.find(b => b.id === parseInt(route.params.id) || b.id === route.params.id))
 const msg = ref('')
 
+// 🛠️ Virtual Type Checker (Mengecek apakah buku digital atau fisik)
+const isDigital = computed(() => {
+  return book.value && ((book.value.pdf_buku && book.value.pdf_buku !== 'null' && book.value.pdf_buku !== '') || book.value.type === 'digital')
+})
+
 const isPending = computed(() => {
   return loanStore.loans.some(
     l =>
       String(l.siswa_id) === String(auth.user?.id) &&
-      String(l.buku_id) === String(book.value.id) &&
+      String(l.buku_id) === String(book.value?.id) &&
       l.status === 'pending'
   )
 })
@@ -29,7 +34,7 @@ const isBorrowedActive = computed(() => {
   return loanStore.loans.some(
     l =>
       String(l.siswa_id) === String(auth.user?.id) &&
-      String(l.buku_id) === String(book.value.id) &&
+      String(l.buku_id) === String(book.value?.id) &&
       l.status === 'dipinjam'
   )
 })
@@ -41,21 +46,45 @@ const aiInsights = ref('')
 const fetchInsights = async () => {
   if (!book.value) return
   aiInsights.value = ''
-  const prompt = `Berikan ringkasan singkat, 3 poin penting yang dipelajari, dan alasan kenapa buku "${book.value.title}" karangan ${book.value.author} ini sangat menarik untuk dibaca. Jawab menggunakan bahasa Indonesia, buat paragraf yang natural. Gunakan **teks tebal** untuk poin penting.`
+  const title = book.value.nama_buku || book.value.title
+  const author = book.value.penulis || book.value.author || 'Penulis Tidak Diketahui'
+  const prompt = `Berikan ringkasan singkat, 3 poin penting yang dipelajari, dan alasan kenapa buku "${title}" karangan ${author} ini sangat menarik untuk dibaca. Jawab menggunakan bahasa Indonesia, buat paragraf yang natural. Gunakan **teks tebal** untuk poin penting.`
   const response = await generateText(prompt)
   aiInsights.value = response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')
 }
 
+// CARI CODENYA YANG SEPERTI INI, LALU GANTI:
 const handleAction = async () => {
   if (!book.value) return
-  if (book.value.type === 'digital') {
-    router.push('/read/' + book.value.id)
+  
+  if (isDigital.value) {
+    if (book.value.pdf_buku) {
+      window.open(book.value.pdf_buku, '_blank')
+    } else {
+      router.push('/read/' + book.value.id)
+    }
   } else {
+    // 🛠️ TAMBAHKAN VALIDASI FRONTEND SEBELUM HIT API
+    const currentStock = book.value.stok !== undefined ? book.value.stok : book.value.stock
+    
+    if (currentStock <= 0) {
+      msg.value = 'Gagal: Stok buku ini sudah habis.'
+      setTimeout(() => msg.value = '', 4000)
+      return
+    }
+
+    if (isPending.value || isBorrowedActive.value) {
+      msg.value = 'Gagal: Kamu sedang mengajukan atau meminjam buku ini.'
+      setTimeout(() => msg.value = '', 4000)
+      return
+    }
+
+    // Jika lolos pengecekan frontend, baru panggil store backend
     const success = await loanStore.requestLoan(auth.user?.id, book.value.id)
     if (success) {
       msg.value = 'Permintaan berhasil dikirim. Menunggu persetujuan Admin.'
     } else {
-      msg.value = 'Gagal: Stok tidak tersedia atau sedang diajukan.'
+      msg.value = 'Gagal: Permintaan tidak dapat diproses oleh sistem.'
     }
     setTimeout(() => msg.value = '', 4000)
   }
@@ -63,50 +92,71 @@ const handleAction = async () => {
 
 const downloadPDF = () => {
   if (auth.user?.membership !== 'premium') router.push('/upgrade')
-  else alert("Mengunduh PDF...")
+  else {
+    if (book.value?.pdf_buku) {
+      window.open(book.value.pdf_buku, '_blank')
+    } else {
+      alert("Mengunduh PDF...")
+    }
+  }
 }
 
 const reviewText = ref('')
 const reviewRating = ref(5)
 
 const submitReview = () => {
-  if(reviewText.value.trim() && book.value){
-    bookStore.addReview(book.value.id, auth.user, reviewRating.value, reviewText.value)
-    reviewText.value = ''
+  if (reviewText.value.trim() && book.value) {
+    // Parameter: bookId, nama_user, rating, teks_ulasan
+
+}    const success = bookStore.addReview(
+      book.value.id, 
+      auth.user?.name || auth.user?.username || 'gratis', // ambil nama user yang login
+      reviewRating.value, 
+      reviewText.value
+    )
+    
+    if (success) {
+      reviewText.value = '' // Kosongkan form kembali setelah berhasil
+    }
   }
-}
+
 </script>
 
 <template>
   <div v-if="book" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
     <div class="p-6 lg:p-8 flex flex-col md:flex-row gap-8">
       <div class="w-full md:w-1/3 lg:w-1/4 shrink-0">
-        <img :src="book.cover" alt="Cover" class="w-full rounded-xl shadow-md border border-slate-100 aspect-[3/4] object-cover bg-slate-200">
+        <!-- 🛠️ Perbaikan Cover Bind database -->
+        <img :src="book.foto_buku || book.cover" alt="Cover" class="w-full rounded-xl shadow-md border border-slate-100 aspect-[3/4] object-cover bg-slate-200">
         
-        <div v-if="book.type === 'physical'" class="mt-4 p-4 rounded-xl text-center font-medium border" :class="book.stock > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100'">
-          {{ book.stock > 0 ? 'Stok Tersedia: ' + book.stock : 'Stok Kosong' }}
+        <!-- 🛠️ Info Stok Dinamis hanya jika Buku Fisik -->
+        <div v-if="!isDigital" class="mt-4 p-4 rounded-xl text-center font-medium border" 
+             :class="(book.stok !== undefined ? book.stok : book.stock) > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100'">
+          {{ (book.stok !== undefined ? book.stok : book.stock) > 0 ? 'Stok Tersedia: ' + (book.stok !== undefined ? book.stok : book.stock) : 'Stok Kosong' }}
         </div>
         
         <div class="flex flex-col gap-2 mt-4">
-          <button v-if="book.type === 'digital'" @click="handleAction" class="w-full py-3 px-4 rounded-xl font-bold text-white transition shadow-sm flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700">
+          <!-- Tombol Baca Online jika Buku Digital -->
+          <button v-if="isDigital" @click="handleAction" class="w-full py-3 px-4 rounded-xl font-bold text-white transition shadow-sm flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700">
             <Icon name="monitor" size="20" /> Baca Online PDF
           </button>
 
-          <template v-else-if="book.type === 'physical'">
+          <!-- Alur Tombol jika Buku Fisik -->
+          <template v-else>
             <button v-if="isBorrowedActive" disabled class="w-full py-3 px-4 rounded-xl font-bold text-teal-700 transition shadow-sm flex items-center justify-center gap-2 bg-teal-100 cursor-not-allowed">
               <Icon name="bookmark" size="20" /> Sedang Dipinjam
             </button>
             <button v-else-if="isPending" disabled class="w-full py-3 px-4 rounded-xl font-bold text-amber-700 transition shadow-sm flex items-center justify-center gap-2 bg-amber-100 cursor-not-allowed">
               <Icon name="monitor" size="20" /> Menunggu Persetujuan
             </button>
-            <button v-else @click="handleAction" :disabled="book.stock <= 0" 
+            <button v-else @click="handleAction" :disabled="(book.stok !== undefined ? book.stok : book.stock) <= 0" 
                     class="w-full py-3 px-4 rounded-xl font-bold text-white transition shadow-sm flex items-center justify-center gap-2"
-                    :class="book.stock > 0 ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-300 cursor-not-allowed'">
+                    :class="(book.stok !== undefined ? book.stok : book.stock) > 0 ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-300 cursor-not-allowed'">
               <Icon name="book" size="20" /> Ajukan Peminjaman
             </button>
           </template>
 
-          <button v-if="book.type === 'digital'" @click="downloadPDF" class="w-full py-3 px-4 rounded-xl font-bold transition shadow-sm border flex items-center justify-center gap-2" :class="auth.user?.membership === 'premium' ? 'bg-white text-teal-600 border-teal-200 hover:bg-teal-50' : 'bg-slate-50 text-slate-400 border-slate-200'">
+          <button v-if="isDigital" @click="downloadPDF" class="w-full py-3 px-4 rounded-xl font-bold transition shadow-sm border flex items-center justify-center gap-2" :class="auth.user?.membership === 'premium' ? 'bg-white text-teal-600 border-teal-200 hover:bg-teal-50' : 'bg-slate-50 text-slate-400 border-slate-200'">
              <Icon name="download" size="20" />
              {{ auth.user?.membership === 'premium' ? 'Unduh PDF' : 'Unduh (Premium)' }}
           </button>
@@ -116,11 +166,11 @@ const submitReview = () => {
       
       <div class="flex-grow">
         <div class="flex items-center gap-2 mb-2">
-          <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs font-bold uppercase tracking-wider">{{ book.category }}</span>
-          <span class="px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider" :class="book.type === 'digital' ? 'bg-teal-50 text-teal-700' : 'bg-amber-50 text-amber-700'">{{ book.type === 'digital' ? 'E-Book' : 'Fisik' }}</span>
+          <span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs font-bold uppercase tracking-wider">{{ book.jenis_buku || book.category }}</span>
+          <span class="px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider" :class="isDigital ? 'bg-teal-50 text-teal-700' : 'bg-amber-50 text-amber-700'">{{ isDigital ? 'E-Book' : 'Fisik' }}</span>
         </div>
-        <h1 class="text-3xl font-bold text-slate-800 mb-1">{{ book.title }}</h1>
-        <p class="text-lg text-slate-500 mb-6">oleh <span class="font-medium text-slate-700">{{ book.author }}</span></p>
+        <h1 class="text-3xl font-bold text-slate-800 mb-1">{{ book.nama_buku || book.title }}</h1>
+        <p class="text-lg text-slate-500 mb-6">oleh <span class="font-medium text-slate-700">{{ book.penulis || book.author || 'Penulis Tidak Diketahui' }}</span></p>
         
         <div class="flex items-center gap-1 text-amber-500 mb-6 bg-amber-50 w-max px-3 py-1.5 rounded-lg border border-amber-100">
           <Icon name="star" size="18" />
@@ -129,7 +179,7 @@ const submitReview = () => {
         </div>
         
         <h3 class="text-lg font-bold text-slate-800 mb-2">Sinopsis</h3>
-        <p class="text-slate-600 leading-relaxed">{{ book.description }}</p>
+        <p class="text-slate-600 leading-relaxed">{{ book.deskripsi || book.description || 'Tidak ada deskripsi.' }}</p>
         
         <div class="mt-8 bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl p-6 border border-teal-100 shadow-sm">
           <div class="flex justify-between items-center mb-4">

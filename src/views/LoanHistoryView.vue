@@ -78,10 +78,10 @@ const formatDate = (ds) => {
                 <td class="p-4 text-slate-600 text-sm">{{ formatDate(loan.tanggal_pinjam) }}</td>
                 <td class="p-4 text-slate-600 text-sm">{{ formatDate(loan.tanggal_kembali) }}</td>
                 <td class="p-4 text-right">
-                  <span v-if="loan.status === 'pending'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">Menunggu Persetujuan</span>
+                  <span v-if="loan.status === 'menunggu'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200">Menunggu Persetujuan</span>
                   <span v-else-if="loan.status === 'dipinjam'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-teal-100 text-teal-700 border border-teal-200">Sedang Dipinjam</span>
                   <span v-else-if="loan.status === 'dikembalikan'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">Dikembalikan</span>
-                  <span v-else-if="loan.status === 'rejected'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">Ditolak</span>
+                  <span v-else-if="loan.status === 'ditolak'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">Ditolak</span>
                 </td>
               </tr>
             </tbody>

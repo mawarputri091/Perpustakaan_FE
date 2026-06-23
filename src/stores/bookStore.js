@@ -1,8 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-// Sesuaikan IP Backend Anda
-const API_URL = 'http://192.168.1.11:3000'
+const API_URL = 'http://192.168.1.3:3000'
 
 const getHeaders = () => {
   const token = localStorage.getItem('api_token');
@@ -16,8 +15,9 @@ export const useBookStore = defineStore('book', () => {
   const books = ref([])
   const bookmarks = ref(JSON.parse(localStorage.getItem('bookmarks')) || {})
   const readingProgress = ref(JSON.parse(localStorage.getItem('progress')) || {})
+  const localReviews = ref(JSON.parse(localStorage.getItem('local_reviews')) || {})
 
-  // GET: Menarik data dari Database
+  // GET: Menarik data dari Database Backend
   const fetchBooks = async () => {
     try {
       const res = await fetch(`${API_URL}/buku`, { headers: getHeaders() })
@@ -26,86 +26,81 @@ export const useBookStore = defineStore('book', () => {
       
       const rawData = result.data || result
       
-      // Mapping dari Database Backend ke Frontend Vue
-books.value = rawData.map(b => {
-  // Ganti baris pengecekan namaFile lama kamu dengan logika pembersihan ini:
-const rawCover = b.foto_buku || b.cover;
-let imageUrl = 'https://via.placeholder.com/300x400?text=No+Cover'
+      books.value = rawData.map(b => {
+        const rawCover = b.foto_buku || b.cover;
+        let imageUrl = 'https://via.placeholder.com/300x400?text=No+Cover'
 
-if (rawCover) {
-  // 🌟 JIKA DATABASE TERLANJUR BERISI 'localhost:3000', KITA POTONG DAN AMBIL NAMA FILE-NYA SAJA
-  if (rawCover.includes('localhost:3000')) {
-    const namaFileSaja = rawCover.split('/').pop(); // Mengambil nama file paling belakang
-    imageUrl = `${API_URL}/uploads/${namaFileSaja}`;
-  } 
-  // Jika dari DB sudah berupa URL IP yang benar
-  else if (rawCover.startsWith('http')) {
-    imageUrl = rawCover;
-  } 
-  // Jika hanya nama file saja
-  else {
-    imageUrl = `${API_URL}/uploads/${rawCover}`;
-  }
-}
+        if (rawCover) {
+          if (rawCover.includes('localhost:3000')) {
+            const namaFileSaja = rawCover.split('/').pop();
+            imageUrl = `${API_URL}/uploads/${namaFileSaja}`;
+          } else if (rawCover.startsWith('http')) {
+            imageUrl = rawCover;
+          } else {
+            imageUrl = `${API_URL}/uploads/${rawCover}`;
+          }
+        }
 
-  return {
-    id: b.id, 
-    title: b.nama_buku || 'Judul Kosong', // Menggunakan nama_buku sesuai JSON Postman
-    author: b.penulis || 'Penulis Tidak Diketahui',
-    cover: imageUrl,
-    category: b.jenis_buku || 'Umum', 
-    type: 'physical', 
-    
-    // 📝 PERBAIKAN PEMETAAN DI SINI:
-    // Gunakan parseFloat atau Number karena di Postman harganya berupa string "1000.00"
-    harga: b.harga_buku ? Number(b.harga_buku) : 0, 
-    stock: b.stok !== undefined ? Number(b.stok) : 0,
-    
-    description: b.deskripsi || 'Tidak ada deskripsi.',
-    pdfUrl: '',
-    rating: 0,
-    reviews: []
-  }
-})
+        const bookIdString = String(b.id);
+        const bookReviews = localReviews.value[bookIdString] || []
+        
+        const totalRating = bookReviews.reduce((sum, rev) => sum + (Number(rev.rating) || 0), 0)
+        const averageRating = bookReviews.length > 0 ? Number((totalRating / bookReviews.length).toFixed(1)) : 0.0
+
+        return {
+          id: b.id, 
+          title: b.nama_buku || 'Judul Kosong', 
+          nama_buku: b.nama_buku || 'Judul Kosong', 
+          author: b.penulis || 'Penulis Tidak Diketahui',
+          cover: imageUrl,
+          category: b.jenis_buku || 'Umum', 
+          pdf_buku: b.pdf_buku || null,
+          type: (b.pdf_buku && b.pdf_buku !== 'null' && b.pdf_buku !== '') ? 'digital' : 'physical', 
+          harga: b.harga_buku ? Number(b.harga_buku) : 0, 
+          stock: b.stok !== undefined ? Number(b.stok) : 0,
+          stok: b.stok !== undefined ? Number(b.stok) : 0,
+          description: b.deskripsi || 'Tidak ada deskripsi.',
+          pdfUrl: b.pdf_buku || '',
+          rating: averageRating,
+          reviews: bookReviews
+        }
+      })
       
     } catch (e) { 
       console.warn('[API Offline] Gagal memuat GET /buku.', e.message)
     }
   }
 
-// POST: Menambah buku ke Database (Mendukung Upload File Gambar)
+  // POST: Menambah buku ke Database
   const createBook = async (bookData) => {
     try {
       const token = localStorage.getItem('api_token');
-      
-      // Menggunakan FormData agar file gambar bisa terkirim ke BE
       const formData = new FormData();
       formData.append('nama_buku', bookData.title);
       formData.append('jenis_buku', bookData.category);
       formData.append('penulis', bookData.author || 'Admin');
       formData.append('deskripsi', bookData.description || '');
-      formData.append('stok', Number(bookData.stock));
+      formData.append('stok', Number(bookData.stock) || 0);
       formData.append('harga_buku', Number(bookData.harga) || 0);
 
-      // Jika user mengupload gambar baru, masukkan filenya
       if (bookData.file) {
-        formData.append('foto_buku', bookData.file); // Menyesuaikan nama kolom upload file di BE
+        formData.append('foto_buku', bookData.file); 
       } else {
         formData.append('foto_buku', bookData.cover || '');
       }
 
+      if (bookData.isDigital && bookData.pdfFile) {
+        formData.append('pdf_buku', bookData.pdfFile);
+      }
+
       const res = await fetch(`${API_URL}/buku`, {
         method: 'POST',
-        headers: {
-          // JANGAN gunakan 'Content-Type': 'application/json' jika mengirim FormData
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: formData // Kirim sebagai formData
+        headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        body: formData
       })
       
-      if (!res.ok) throw new Error('Gagal tambah buku ke API')
-      
-      await fetchBooks() // Refresh katalog
+      if (!res.ok) throw new Error('Gagal tambah buku')
+      await fetchBooks()
       return true
     } catch (e) { 
       console.error('[API Error] Gagal POST /buku:', e.message)
@@ -113,54 +108,62 @@ if (rawCover) {
     }
   }
 
-const editBook = async (id, bookData) => {
-  try {
-    const token = localStorage.getItem('api_token');
-    const formData = new FormData();
-    
-    // Sesuaikan mapping key dengan req.body yang dibaca di buku.service.js
-    formData.append('nama_buku', bookData.title || bookData.nama_buku);
-    formData.append('jenis_buku', bookData.category || bookData.jenis_buku);
-    formData.append('stok', String(bookData.stock ?? bookData.stok ?? 0));
-    formData.append('harga_buku', String(bookData.harga || bookData.harga_buku || 0));
+// PUT: Update buku di Database
+  const editBook = async (id, bookData) => {
+    try {
+      const token = localStorage.getItem('api_token');
+      const formData = new FormData();
+      
+      // Kirim data teks utama
+      formData.append('nama_buku', bookData.title || '');
+      formData.append('jenis_buku', bookData.category || '');
+      formData.append('penulis', bookData.author || 'Admin');
+      formData.append('deskripsi', bookData.description || '');
+      
+      // Pastikan stok dikonversi ke Number/Integer agar ORM backend tidak error 500
+      formData.append('stok', Number(bookData.stock ?? 0));
+      formData.append('harga_buku', Number(bookData.harga || 0));
 
-    if (bookData.file) {
-      formData.append('foto_buku', bookData.file);
-    } else if (bookData.cover || bookData.foto_buku) {
-      const currentCover = bookData.cover || bookData.foto_buku;
-      const namaFileLama = currentCover.includes('/') ? currentCover.split('/').pop() : currentCover;
-      formData.append('foto_buku', namaFileLama);
+      // Jika admin mengunggah berkas cover gambar baru
+      if (bookData.file) {
+        formData.append('foto_buku', bookData.file); 
+      }
+
+      // Sesuai dengan payload Vue yang menggunakan nama 'pdfUrl' atau 'pdfFile'
+      if (bookData.pdfFile) {
+        formData.append('pdf_buku', bookData.pdfFile);
+      } else if (bookData.pdfUrl) {
+        formData.append('pdf_buku', bookData.pdfUrl);
+      }
+
+      const res = await fetch(`${API_URL}/buku/${id}`, {
+        method: 'PUT',
+        headers: { 
+          // JANGAN cantumkan 'Content-Type': 'application/json' di sini 
+          // agar browser otomatis menyusun boundary multipart/form-data
+          ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+        },
+        body: formData
+      });
+
+      if (!res.ok) {
+        const result = await res.json().catch(() => ({}));
+        throw new Error(result.message || `Server merespon ${res.status}`);
+      }
+
+      await fetchBooks();
+      return true;
+    } catch (e) {
+      console.error('[Frontend Error] Terjadi kegagalan di editBook:', e.message);
+      return false;
     }
-
-    const res = await fetch(`${API_URL}/buku/${id}`, {
-      method: 'PUT',
-      headers: {
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      },
-      body: formData
-    });
-    
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.message || 'Gagal menyimpan');
-    
-    await fetchBooks();
-    return true;
-  } catch (e) {
-    console.error('[Frontend Error]', e.message);
-    alert(`Gagal Update: ${e.message}`); // Biar memunculkan alert pesan asli dari BE (seperti INVALID_TOKEN)
-    return false;
   }
-}
 
-  // DELETE: Menghapus buku dari Database
+  // DELETE: Hapus buku
   const removeBook = async (id) => {
     try {
-      const res = await fetch(`${API_URL}/buku/${id}`, { 
-        method: 'DELETE',
-        headers: getHeaders()
-      })
+      const res = await fetch(`${API_URL}/buku/${id}`, { method: 'DELETE', headers: getHeaders() })
       if (!res.ok) throw new Error('Gagal hapus buku')
-      
       await fetchBooks()
       return true
     } catch (e) { 
@@ -169,7 +172,6 @@ const editBook = async (id, bookData) => {
     }
   }
 
-  // --- Fungsi Tambahan ---
   const saveProgress = (userId, bookId, page) => {
     if (!readingProgress.value[userId]) readingProgress.value[userId] = {}
     readingProgress.value[userId][bookId] = page
@@ -190,11 +192,35 @@ const editBook = async (id, bookData) => {
     if (b && b.type === 'physical') { b.stock += change; }
   }
 
-  const addReview = (bookId, user, rating, text) => {
-    const book = books.value.find(b => b.id === bookId)
-    if (book && user) {
-      if (!book.reviews) book.reviews = []
-      book.reviews.push({ user: user.name, rating, text, date: new Date().toISOString() })
+  const addReview = (bookId, username, rating, text) => {
+    try {
+      const idKey = String(bookId);
+      if (!localReviews.value[idKey]) {
+        localReviews.value[idKey] = []
+      }
+
+      const newReview = {
+        id: Date.now(),
+        user: username || 'Anonim', 
+        rating: Number(rating),
+        text: text,
+        date: new Date().toLocaleDateString('id-ID')
+      }
+
+      localReviews.value[idKey].push(newReview)
+      localStorage.setItem('local_reviews', JSON.stringify(localReviews.value))
+
+      const targetBook = books.value.find(b => String(b.id) === idKey)
+      if (targetBook) {
+        targetBook.reviews = localReviews.value[idKey]
+        const totalRating = targetBook.reviews.reduce((sum, rev) => sum + rev.rating, 0)
+        targetBook.rating = Number((totalRating / targetBook.reviews.length).toFixed(1))
+      }
+
+      return true
+    } catch (e) {
+      console.error('Gagal ulasan lokal:', e.message)
+      return false
     }
   }
 

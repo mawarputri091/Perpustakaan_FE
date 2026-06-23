@@ -1,4 +1,5 @@
-export const DEFAULT_PDF = '[https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf](https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf)';
+// ✅ BENAR (Bersih tanpa kurung siku atau duplikasi link)
+export const DEFAULT_PDF = 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf';
 
 export const mockUsers = [
   { id: 1, name: 'Admin Perpus', username: 'admin', role: 'admin', membership: 'premium' },
