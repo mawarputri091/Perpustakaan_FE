@@ -83,14 +83,16 @@ export const useBookStore = defineStore('book', () => {
       formData.append('stok', Number(bookData.stock) || 0);
       formData.append('harga_buku', Number(bookData.harga) || 0);
 
+      // Handle Cover Gambar
       if (bookData.file) {
         formData.append('foto_buku', bookData.file); 
       } else {
         formData.append('foto_buku', bookData.cover || '');
       }
 
-      if (bookData.isDigital && bookData.pdfFile) {
-        formData.append('pdf_buku', bookData.pdfFile);
+      // 🌟 DISINKRONKAN: Menerima file_pdf dari AdminBooksView
+      if (bookData.type === 'digital' && bookData.file_pdf) {
+        formData.append('pdf_buku', bookData.file_pdf);
       }
 
       const res = await fetch(`${API_URL}/buku`, {
@@ -108,39 +110,39 @@ export const useBookStore = defineStore('book', () => {
     }
   }
 
-// PUT: Update buku di Database
+  // PUT: Update buku di Database
   const editBook = async (id, bookData) => {
     try {
       const token = localStorage.getItem('api_token');
       const formData = new FormData();
+
+      console.log("File gambar yang akan dikirim:", bookData.file);
+      console.log("File PDF yang akan dikirim:", bookData.file_pdf);
       
-      // Kirim data teks utama
       formData.append('nama_buku', bookData.title || '');
       formData.append('jenis_buku', bookData.category || '');
       formData.append('penulis', bookData.author || 'Admin');
       formData.append('deskripsi', bookData.description || '');
-      
-      // Pastikan stok dikonversi ke Number/Integer agar ORM backend tidak error 500
       formData.append('stok', Number(bookData.stock ?? 0));
       formData.append('harga_buku', Number(bookData.harga || 0));
 
-      // Jika admin mengunggah berkas cover gambar baru
+      // Handle Cover Gambar
       if (bookData.file) {
         formData.append('foto_buku', bookData.file); 
       }
 
-      // Sesuai dengan payload Vue yang menggunakan nama 'pdfUrl' atau 'pdfFile'
-      if (bookData.pdfFile) {
-        formData.append('pdf_buku', bookData.pdfFile);
-      } else if (bookData.pdfUrl) {
-        formData.append('pdf_buku', bookData.pdfUrl);
+      // 🌟 DISINKRONKAN: Mengirim file PDF baru jika ada, atau mempertahankan URL lama jika tidak diubah
+      if (bookData.type === 'digital') {
+        if (bookData.file_pdf) {
+          formData.append('pdf_buku', bookData.file_pdf); // Mengirim file fisik berkas pdf baru
+        } else if (bookData.pdfUrl) {
+          formData.append('pdf_buku', bookData.pdfUrl); // Mempertahankan path lama agar tidak hilang
+        }
       }
 
       const res = await fetch(`${API_URL}/buku/${id}`, {
         method: 'PUT',
         headers: { 
-          // JANGAN cantumkan 'Content-Type': 'application/json' di sini 
-          // agar browser otomatis menyusun boundary multipart/form-data
           ...(token ? { Authorization: `Bearer ${token}` } : {}) 
         },
         body: formData
