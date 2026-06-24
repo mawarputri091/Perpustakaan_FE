@@ -130,21 +130,43 @@ const downloadPDF = async () => {
 const reviewText = ref('')
 const reviewRating = ref(5)
 
+// 🛠️ PERBAIKI STRUKTUR SUBMIT REVIEW AGAR MENYIMPAN TANGGAL REALTIME
 const submitReview = () => {
   if (reviewText.value.trim() && book.value) {
-    // Parameter: bookId, nama_user, rating, teks_ulasan
-
-}    const success = bookStore.addReview(
+    const success = bookStore.addReview(
       book.value.id, 
-      auth.user?.name || auth.user?.username || 'gratis', // ambil nama user yang login
+      auth.user?.name || auth.user?.username || 'gratis',
       reviewRating.value, 
-      reviewText.value
+      reviewText.value,
+      new Date().toISOString()
     )
     
+    // Jika store addReview kamu menerima parameter tanggal, pastikan di dalam 
+    // bookStore.js data tersebut disimpan ke dalam properti 'created_at' ya!
     if (success) {
-      reviewText.value = '' // Kosongkan form kembali setelah berhasil
+      reviewText.value = ''
     }
   }
+}
+
+// 📦 TAMBAHKAN FUNGSI HELPER FORMAT TANGGAL YANG AMAN
+const formatDate = (dateString) => {
+  if (!dateString) return 'Baru-baru ini'
+  
+  const date = new Date(dateString)
+  
+  // Jika format string dummy bermasalah/invalid, berikan fallback tulisan aman
+  if (isNaN(date.getTime())) {
+    return 'Baru-baru ini'
+  }
+
+  // Mengubah tanggal menjadi format rapi Indonesia (Contoh: 24 Juni 2026)
+  return date.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+}
 
 </script>
 
@@ -253,7 +275,7 @@ const submitReview = () => {
                   <span v-for="n in 5" :key="n" :class="n <= rev.rating ? 'text-amber-400' : 'text-slate-200'">★</span>
                </div>
              </div>
-             <div class="ml-auto text-xs text-slate-400">{{ new Date(rev.date).toLocaleDateString('id-ID') }}</div>
+            <div class="ml-auto text-xs text-slate-400 font-medium">{{ formatDate(rev.created_at || rev.createdAt || rev.date) }}</div>
            </div>
            <p class="text-slate-600 text-sm pl-10">{{ rev.text }}</p>
         </div>
