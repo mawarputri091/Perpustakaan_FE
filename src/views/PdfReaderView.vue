@@ -54,7 +54,14 @@ const bookmarks = computed(() => {
   if (!book.value || !auth.user) return []
   return bookStore.bookmarks[auth.user.id]?.[book.value.id] || []
 })
-const isBookmarked = computed(() => bookmarks.value.includes(pageNum.value))
+const isBookmarked = ref(false)
+
+const checkBookmarkStatus = () => {
+  if (!book.value) return
+  const savedBookmarks = JSON.parse(localStorage.getItem('book_bookmarks') || '[]')
+  // Kita cek berdasarkan ID Buku
+  isBookmarked.value = savedBookmarks.some(b => b.id === book.value.id)
+}
 
 onMounted(() => {
   if (!book.value || book.value.type !== 'digital') return router.push('/dashboard')
@@ -64,10 +71,10 @@ onMounted(() => {
      if (savedPage) pageNum.value = savedPage
   }
 
-  if (window.pdfjsLib) {
-    // SINKRONISASI VERSI WORKER SESUAI API (3.11.174)
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+  checkBookmarkStatus()
 
+    if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
     const targetPdfUrl = book.value.pdf_buku || book.value.pdfUrl
 
     if (!targetPdfUrl) {
@@ -105,7 +112,37 @@ const renderPage = (num) => {
 
     page.render({ canvasContext: ctx, viewport: viewport }).promise.then(() => {
       isRendering.value = false
-      if (auth.user?.membership === 'premium') bookStore.saveProgress(auth.user?.id, book.value.id, num)
+      
+      // Jika user premium, simpan progres ke store asli
+      if (auth.user?.membership === 'premium') {
+        bookStore.saveProgress(auth.user?.id, book.value.id, num)
+      }
+
+      // ==========================================
+      // ✨ TAMBAHKAN LOGIKA SIMPAN RIWAYAT MEMBACA DI SINI
+      // ==========================================
+      if (book.value) {
+        // Ambil data riwayat yang sudah ada atau buat array baru jika belum ada
+        let readingHistory = JSON.parse(localStorage.getItem('book_history') || '[]')
+        
+        // Hapus entri lama jika buku ini sudah pernah ada di riwayat (supaya posisinya naik ke paling atas/terbaru)
+        readingHistory = readingHistory.filter(item => item.id !== book.value.id)
+        
+        // Tambahkan buku yang sedang dibaca ke urutan pertama
+        readingHistory.unshift({
+          id: book.value.id,
+          nama_buku: book.value.nama_buku || book.value.title,
+          cover_buku: book.value.foto_buku || book.value.cover,
+          penulis: book.value.penulis || book.value.author || 'Penulis Tidak Diketahui',
+          terakhir_dibaca: new Date().toISOString(),
+          halaman_terakhir: num
+        })
+        
+        // Simpan kembali ke localStorage
+        localStorage.setItem('book_history', JSON.stringify(readingHistory))
+      }
+      // ==========================================
+
     })
   })
 }
@@ -117,13 +154,78 @@ const zoomIn = () => { scale.value += 0.2; renderPage(pageNum.value) }
 
 const toggleBookmark = () => {
   if (auth.user?.membership !== 'premium') return showUpgradeModal.value = true
+  if (!book.value) return
+
+  let savedBookmarks = JSON.parse(localStorage.getItem('book_bookmarks') || '[]')
+  
+  if (isBookmarked.value) {
+    // Jika sudah ditandai, hapus dari localStorage
+    savedBookmarks = savedBookmarks.filter(b => b.id !== book.value.id)
+    isBookmarked.value = false
+  } else {
+    // Jika belum ada, simpan data informasi objek bukunya
+    savedBookmarks.push({
+      id: book.value.id,
+      nama_buku: book.value.nama_buku || book.value.title,
+      cover_buku: book.value.foto_buku || book.value.cover,
+      penulis: book.value.penulis || book.value.author || 'Penulis Tidak Diketahui',
+      bookmarkedAt: new Date().toISOString()
+    })
+    isBookmarked.value = true
+  }
+  
+  // Masukkan kembali array baru ke dalam localStorage
+  localStorage.setItem('book_bookmarks', JSON.stringify(savedBookmarks))
+  
+  // Opsional: Tetap jalankan fungsi store asli jika Anda ingin menyimpan koordinat ke backend/database
   bookStore.toggleBookmark(auth.user?.id, book.value.id, pageNum.value)
 }
 
-const download = () => {
-   if (auth.user?.membership !== 'premium') return showUpgradeModal.value = true
-   alert("Mengunduh PDF...")
+const download = async () => {
+  // Pastikan data buku dan URL PDF-nya tersedia
+  const targetPdfUrl = book.value?.pdf_buku || book.value?.pdfUrl
+
+  if (!targetPdfUrl) {
+    alert("File PDF tidak ditemukan atau URL tidak valid.")
+    return
+  }
+
+  try {
+    // 1. Tampilkan log/indikator jika diperlukan (opsional, bisa hapus alert bawaan agar tidak mengganggu)
+    console.log("Memulai pengunduhan file...");
+
+    // 2. Ambil data file menggunakan fetch
+    const response = await fetch(targetPdfUrl)
+    if (!response.ok) throw new Error("Gagal mengambil file dari server")
+    
+    const blob = await response.blob()
+    
+    // 3. Buat objek URL sementara di memori browser
+    const url = window.URL.createObjectURL(blob)
+    
+    // 4. Manipulasi elemen jangkar (anchor) HTML5 untuk memicu download langsung
+    const link = document.createElement('a')
+    link.href = url
+    
+    // Beri nama file unduhan otomatis berdasarkan judul buku
+    const namaFile = book.value?.nama_buku || book.value?.title || 'Buku'
+    link.setAttribute('download', `${namaFile}.pdf`)
+    
+    // 5. Eksekusi perintah klik tiruan
+    document.body.appendChild(link)
+    link.click()
+    
+    // 6. Bersihkan sisa elemen dan memori URL blob
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error("Gagal mengunduh PDF:", error)
+    
+    // Fallback/Cadangan: Jika terhalang CORS, buka file di tab baru agar user tetap bisa menyimpannya
+    window.open(targetPdfUrl, '_blank')
+  }
 }
+
 </script>
 
 <template>

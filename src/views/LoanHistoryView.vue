@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/authStore'
 import { useLoanStore } from '../stores/loanStore'
 import { useBookStore } from '../stores/bookStore'
@@ -10,6 +10,9 @@ const loanStore = useLoanStore()
 const bookStore = useBookStore()
 
 const activeTab = ref('loans')
+
+// Menggunakan satu state gabungan untuk semua aktivitas e-book
+const combinedReadingData = ref([])
 
 const history = computed(() => {
   if (!auth.user) return []
@@ -24,17 +27,64 @@ const history = computed(() => {
     .reverse()
 })
 
-const myBookmarks = computed(() => {
-   if (!auth.user) return []
-   const bks = bookStore.bookmarks[auth.user.id] || {}
-   const results = []
-   for(const bookId in bks) {
-      if(bks[bookId].length > 0) {
-         const book = bookStore.books.find(b => b.id === parseInt(bookId) || b.id === bookId)
-         if(book) results.push({ book, pages: bks[bookId] })
-      }
-   }
-   return results
+// Fungsi memuat & menggabungkan data riwayat membaca dan bookmark
+const loadReadingActivity = () => {
+  const bookmarks = JSON.parse(localStorage.getItem('book_bookmarks') || '[]')
+  const historyList = JSON.parse(localStorage.getItem('book_history') || '[]')
+
+  // Buat Map untuk menggabungkan data duplikat berdasarkan ID buku
+  const mergedMap = new Map()
+
+  // 1. Masukkan data riwayat membaca terlebih dahulu
+  historyList.forEach(item => {
+    mergedMap.set(item.id, {
+      ...item,
+      isBookmarked: false,
+      halaman_terakhir: item.halaman_terakhir || 1,
+      tipe_label: 'Sedang Dibaca'
+    })
+  })
+
+  // 2. Masukkan data bookmark (jika sudah ada di riwayat, timpa status atau tandai sebagai bookmark)
+  bookmarks.forEach(item => {
+    if (mergedMap.has(item.id)) {
+      const existing = mergedMap.get(item.id)
+      mergedMap.set(item.id, {
+        ...existing,
+        isBookmarked: true,
+        tipe_label: 'Bookmark'
+      })
+    } else {
+      mergedMap.set(item.id, {
+        ...item,
+        isBookmarked: true,
+        halaman_terakhir: 1,
+        tipe_label: 'Bookmark'
+      })
+    }
+  })
+
+  // Ubah kembali Map menjadi array untuk UI
+  combinedReadingData.value = Array.from(mergedMap.values())
+}
+
+// Fungsi menghapus item dari list (baik hapus bookmark atau hapus dari riwayat)
+const removeActivity = (id) => {
+  // Hapus dari data bookmark
+  let bookmarks = JSON.parse(localStorage.getItem('book_bookmarks') || '[]')
+  bookmarks = bookmarks.filter(b => b.id !== id)
+  localStorage.setItem('book_bookmarks', JSON.stringify(bookmarks))
+
+  // Hapus dari data riwayat membaca
+  let historyList = JSON.parse(localStorage.getItem('book_history') || '[]')
+  historyList = historyList.filter(b => b.id !== id)
+  localStorage.setItem('book_history', JSON.stringify(historyList))
+
+  loadReadingActivity() // Segarkan UI langsung
+}
+
+onMounted(() => {
+  loadReadingActivity()
 })
 
 const formatDate = (ds) => {
@@ -49,12 +99,11 @@ const formatDate = (ds) => {
       <h2 class="text-2xl font-bold text-slate-800 mb-4">Riwayat Aktivitas</h2>
       <div class="flex gap-6 -mb-px">
          <button @click="activeTab = 'loans'" :class="activeTab === 'loans' ? 'border-teal-500 text-teal-600 font-bold' : 'border-transparent text-slate-500 hover:text-slate-700'" class="pb-3 border-b-2 transition">Peminjaman Fisik</button>
-         <button @click="activeTab = 'reading'" :class="activeTab === 'reading' ? 'border-teal-500 text-teal-600 font-bold' : 'border-transparent text-slate-500 hover:text-slate-700'" class="pb-3 border-b-2 transition">Bacaan & Bookmark</button>
+         <button @click="activeTab = 'reading'; loadReadingActivity()" :class="activeTab === 'reading' ? 'border-teal-500 text-teal-600 font-bold' : 'border-transparent text-slate-500 hover:text-slate-700'" class="pb-3 border-b-2 transition">Bacaan & Bookmark</button>
       </div>
     </div>
     
     <div class="p-6">
-      <!-- TAB LOANS -->
       <div v-if="activeTab === 'loans'">
         <div v-if="history.length === 0" class="text-center py-10 text-slate-500">
           Belum ada riwayat permintaan atau peminjaman buku fisik.
@@ -72,8 +121,8 @@ const formatDate = (ds) => {
             <tbody class="divide-y divide-slate-100">
               <tr v-for="loan in history" :key="loan.id" class="hover:bg-slate-50 transition">
                 <td class="p-4 font-medium text-slate-800 flex items-center gap-3">
-                  <img :src="loan.book?.cover" class="w-10 h-14 object-cover rounded shadow-sm bg-slate-200">
-                  {{ loan.book?.title || loan.nama_buku || 'Buku Telah Dihapus' }}
+                  <img :src="loan.book?.cover || loan.book?.cover_buku" class="w-10 h-14 object-cover rounded shadow-sm bg-slate-200">
+                  {{ loan.book?.title || loan.book?.nama_buku || loan.nama_buku || 'Buku Telah Dihapus' }}
                 </td>
                 <td class="p-4 text-slate-600 text-sm">{{ formatDate(loan.tanggal_pinjam) }}</td>
                 <td class="p-4 text-slate-600 text-sm">{{ formatDate(loan.tanggal_kembali) }}</td>
@@ -89,22 +138,33 @@ const formatDate = (ds) => {
         </div>
       </div>
 
-      <!-- TAB READING -->
       <div v-if="activeTab === 'reading'">
-         <div v-if="myBookmarks.length === 0" class="text-center py-10 text-slate-500">
-            Anda belum menyimpan bookmark dari e-book manapun.
+         <div v-if="combinedReadingData.length === 0" class="text-center py-10 text-slate-500">
+           Anda belum memiliki aktivitas membaca atau menyimpan bookmark e-book.
          </div>
          <div class="space-y-4" v-else>
-            <div v-for="item in myBookmarks" :key="item.book.id" class="border border-slate-200 rounded-xl p-4 flex gap-4 items-center">
-               <img :src="item.book.cover" class="w-12 h-16 object-cover rounded shadow-sm bg-slate-200">
+            <div v-for="item in combinedReadingData" :key="item.id" class="border border-slate-200 rounded-xl p-4 flex gap-4 items-center bg-white shadow-sm hover:shadow-md transition">
+               <img :src="item.cover_buku || item.cover" class="w-12 h-16 object-cover rounded shadow-sm bg-slate-200">
                <div class="flex-grow">
-                  <h4 class="font-bold text-slate-800">{{ item.book.title }}</h4>
-                  <div class="text-sm text-slate-500 mt-1 flex gap-2">
-                     <span class="flex items-center gap-1"><Icon name="bookmark" size="14"/> Halaman disimpan:</span>
-                     <span v-for="p in item.pages" :key="p" class="bg-teal-100 text-teal-700 px-1.5 rounded text-xs font-bold">{{ p }}</span>
+                  <div class="flex items-center gap-2">
+                    <h4 class="font-bold text-slate-800 text-sm md:text-base">{{ item.nama_buku || item.title }}</h4>
+                    <span :class="item.isBookmarked ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-teal-100 text-teal-700 border-teal-200'" class="text-[10px] font-bold px-2 py-0.5 rounded-full border">
+                      {{ item.tipe_label }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-0.5">oleh {{ item.penulis || 'Penulis Tidak Diketahui' }}</p>
+                  <div class="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                     <span>📖 Progress: Terakhir dibaca sampai Halaman {{ item.halaman_terakhir }}</span>
                   </div>
                </div>
-               <router-link :to="'/read/' + item.book.id" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-bold hover:bg-slate-700">Lanjutkan</router-link>
+               <div class="flex items-center gap-2">
+                 <router-link :to="'/read/' + item.id" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition">
+                   Lanjutkan
+                 </router-link>
+                 <button @click="removeActivity(item.id)" class="p-2 border border-rose-100 hover:bg-rose-50 text-rose-500 rounded-lg transition" title="Hapus dari Aktivitas">
+                   🗑️
+                 </button>
+               </div>
             </div>
          </div>
       </div>

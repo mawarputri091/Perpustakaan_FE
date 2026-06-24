@@ -38,17 +38,20 @@ const recentBooks = computed(() => [...bookStore.books].reverse().slice(0, 4))
 
 <template>
   <div>
+    <!-- Hero Section -->
     <div class="bg-teal-600 rounded-3xl p-8 md:p-10 text-white mb-8 shadow-lg shadow-teal-600/20 relative overflow-hidden">
       <div class="relative z-10 w-full md:w-2/3">
         <h1 class="text-3xl md:text-4xl font-bold mb-4">Selamat Datang di EduLibrary, {{ auth.user?.username || auth.user?.name }}! 👋</h1>
         <p class="text-teal-100 mb-6 text-lg">Jelajahi ribuan buku digital berkualitas dan koleksi buku fisik langsung dari perpustakaan kami. Kembangkan pengetahuanmu hari ini.</p>
         <router-link to="/catalog" class="inline-block bg-white text-teal-700 font-bold px-6 py-3 rounded-xl hover:bg-teal-50 transition shadow-sm">Mulai Membaca</router-link>
       </div>
+      <!-- Dekorasi -->
       <div class="absolute right-0 bottom-0 opacity-20 transform translate-x-1/4 translate-y-1/4">
         <Icon name="book" size="250" />
       </div>
     </div>
 
+    <!-- Banner Upgrade -->
     <div v-if="auth.user?.role === 'user' && auth.user?.membership !== 'premium'" class="bg-gradient-to-r from-amber-400 to-orange-400 rounded-2xl p-6 mb-8 text-white flex flex-col md:flex-row items-center justify-between shadow-md">
       <div>
         <h3 class="text-xl font-bold mb-1 flex items-center gap-2"><Icon name="crown" size="24" /> Upgrade ke Premium</h3>
@@ -57,21 +60,25 @@ const recentBooks = computed(() => [...bookStore.books].reverse().slice(0, 4))
       <router-link to="/upgrade" class="mt-4 md:mt-0 bg-white text-amber-600 font-bold px-6 py-2.5 rounded-lg hover:bg-amber-50 transition shrink-0 shadow-sm">Lihat Paket</router-link>
     </div>
 
-    <div class="w-full bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
-       <div class="flex gap-4 items-start max-w-3xl">
-          <div class="p-3 bg-teal-100 text-teal-600 rounded-xl shrink-0">
-             <Icon name="monitor" size="24"/>
-          </div>
+    <!-- Info Mode -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-4 items-start">
+          <div class="p-3 bg-teal-100 text-teal-600 rounded-xl shrink-0"><Icon name="monitor" size="24"/></div>
           <div>
-            <h3 class="font-bold text-slate-800 text-lg mb-1">Mode Online </h3>
-            <p class="text-slate-500 text-sm leading-relaxed">Bisa langsung pesan dari online tanpa harus mengantri panjang</p>
+            <h3 class="font-bold text-slate-800 text-lg mb-1">Mode Online (E-Book)</h3>
+            <p class="text-slate-500 text-sm">Baca buku digital langsung di browser Anda dengan PDF Reader interaktif. Tersedia fitur navigasi dan bookmark.</p>
           </div>
        </div>
-       <router-link to="/catalog" class="bg-teal-600 hover:bg-teal-700 text-white text-center text-sm font-semibold px-5 py-3 rounded-xl shrink-0 transition shadow-sm shadow-teal-600/10">
-          Buka Katalog Digital
-       </router-link>
+       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-4 items-start">
+          <div class="p-3 bg-amber-100 text-amber-600 rounded-xl shrink-0"><Icon name="book" size="24"/></div>
+          <div>
+            <h3 class="font-bold text-slate-800 text-lg mb-1">Mode Offline (Fisik)</h3>
+            <p class="text-slate-500 text-sm">Ajukan permohonan buku fisik, ambil di perpustakaan setelah disetujui, dan pantau riwayat dengan mudah.</p>
+          </div>
+       </div>
     </div>
 
+    <!-- Statistik -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       <div v-for="stat in stats" :key="stat.label" class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
         <div :class="[stat.bg, stat.color]" class="p-4 rounded-xl shrink-0">
@@ -84,6 +91,7 @@ const recentBooks = computed(() => [...bookStore.books].reverse().slice(0, 4))
       </div>
     </div>
 
+    <!-- Buku Terbaru -->
     <div>
       <div class="flex justify-between items-end mb-4">
         <h2 class="text-xl font-bold text-slate-800">Buku Terbaru</h2>
