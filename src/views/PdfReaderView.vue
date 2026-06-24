@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, shallowRef } from 'vue' // <-- Tambahkan shallowRef di sini
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { useBookStore } from '../stores/bookStore'
@@ -13,7 +13,7 @@ const bookStore = useBookStore()
 
 const book = computed(() => bookStore.books.find(b => b.id === parseInt(route.params.id) || b.id === route.params.id))
 const canvasRef = ref(null)
-const pdfDoc = ref(null)
+const pdfDoc = shallowRef(null)
 
 // ✨ AI Chat State
 const { generateText, isGenerating: isChatting } = useGemini()
@@ -25,7 +25,7 @@ const chatContainer = ref(null)
 const initChat = () => {
   if (!book.value) return
   if (chatMessages.value.length === 0) {
-    chatMessages.value.push({ role: 'assistant', text: `Halo! Saya adalah ✨ AI Study Buddy. Ada yang ingin kamu tanyakan atau diskusikan dari buku "${book.value.title}"?` })
+    chatMessages.value.push({ role: 'assistant', text: `Halo! Saya adalah ✨ AI Teman Baca. Ada yang ingin kamu tanyakan atau diskusikan dari buku "${book.value.title}"?` })
   }
   showAiChat.value = !showAiChat.value
 }
@@ -65,11 +65,22 @@ onMounted(() => {
   }
 
   if (window.pdfjsLib) {
-    window.pdfjsLib.getDocument(book.value.pdfUrl).promise.then(pdf => {
+    // SINKRONISASI VERSI WORKER SESUAI API (3.11.174)
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+
+    const targetPdfUrl = book.value.pdf_buku || book.value.pdfUrl
+
+    if (!targetPdfUrl) {
+      error.value = "URL file PDF tidak ditemukan pada data buku."
+      return
+    }
+
+    window.pdfjsLib.getDocument(targetPdfUrl).promise.then(pdf => {
       pdfDoc.value = pdf
       renderPage(pageNum.value)
     }).catch(err => {
-      error.value = "Gagal memuat file PDF. Pastikan URL valid atau PDF tersedia."
+      console.error(err)
+      error.value = "Gagal memuat file PDF. Pastikan URL valid atau file tersedia."
     })
   }
 })
@@ -170,7 +181,7 @@ const download = () => {
       <!-- ✨ AI Chat Panel -->
       <div v-if="showAiChat" class="fixed bottom-6 right-6 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden z-50" style="height: 500px; max-height: 80vh;">
          <div class="bg-gradient-to-r from-teal-600 to-emerald-600 p-4 text-white flex justify-between items-center shrink-0">
-           <div class="font-bold flex items-center gap-2"><span class="text-xl">✨</span> AI Study Buddy</div>
+           <div class="font-bold flex items-center gap-2"><span class="text-xl">✨</span> AI Teman Baca</div>
            <button @click="showAiChat = false" class="hover:text-teal-200 transition text-lg font-bold">&times;</button>
          </div>
          <div ref="chatContainer" class="flex-grow p-4 overflow-y-auto bg-slate-50 flex flex-col gap-3">

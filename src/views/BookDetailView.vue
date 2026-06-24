@@ -58,11 +58,9 @@ const handleAction = async () => {
   if (!book.value) return
   
   if (isDigital.value) {
-    if (book.value.pdf_buku) {
-      window.open(book.value.pdf_buku, '_blank')
-    } else {
-      router.push('/read/' + book.value.id)
-    }
+    // PERBAIKAN: Jangan buka window.open, melainkan arahkan langsung ke PdfReaderView menggunakan Router
+    // Sesuaikan path '/read/' dengan path router yang mengarah ke PdfReaderView.vue
+    router.push('/read/' + book.value.id)
   } else {
     // 🛠️ TAMBAHKAN VALIDASI FRONTEND SEBELUM HIT API
     const currentStock = book.value.stok !== undefined ? book.value.stok : book.value.stock
@@ -90,13 +88,41 @@ const handleAction = async () => {
   }
 }
 
-const downloadPDF = () => {
-  if (auth.user?.membership !== 'premium') router.push('/upgrade')
-  else {
+const downloadPDF = async () => {
+  if (auth.user?.membership !== 'premium') {
+    router.push('/upgrade')
+  } else {
     if (book.value?.pdf_buku) {
-      window.open(book.value.pdf_buku, '_blank')
+      try {
+        // 1. Ambil data file PDF dari backend sebagai Blob (Binary Large Object)
+        const response = await fetch(book.value.pdf_buku)
+        const blob = await response.blob()
+        
+        // 2. Buat URL sementara lokal di dalam memori browser
+        const url = window.URL.createObjectURL(blob)
+        
+        // 3. Manipulasi HTML Anchor untuk memicu download langsung
+        const link = document.createElement('a')
+        link.href = url
+        
+        // Beri nama file unduhan otomatis sesuai nama buku
+        const namaFile = book.value.nama_buku || book.value.title || 'Buku'
+        link.setAttribute('download', `${namaFile}.pdf`)
+        
+        // 4. Eksekusi klik otomatis untuk download
+        document.body.appendChild(link)
+        link.click()
+        
+        // 5. Bersihkan kembali element dan URL memori setelah selesai
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+      } catch (error) {
+        console.error("Gagal mengunduh file secara otomatis:", error)
+        // Fallback: jika terjadi masalah CORS di local, buka di tab baru sebagai cadangan
+        window.open(book.value.pdf_buku, '_blank')
+      }
     } else {
-      alert("Mengunduh PDF...")
+      alert("File PDF tidak ditemukan.")
     }
   }
 }
@@ -183,15 +209,15 @@ const submitReview = () => {
         
         <div class="mt-8 bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl p-6 border border-teal-100 shadow-sm">
           <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-teal-800 flex items-center gap-2">✨ AI Book Insights</h3>
+            <h3 class="text-lg font-bold text-teal-800 flex items-center gap-2">✨ AI Teman Baca</h3>
             <button @click="fetchInsights" :disabled="isGenerating" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 disabled:opacity-50">
               <span v-if="isGenerating" class="animate-spin text-lg">⏳</span>
               {{ aiInsights ? 'Regenerate' : 'Generate Insights' }}
             </button>
           </div>
           <div v-if="aiInsights" class="text-slate-700 text-sm leading-relaxed" v-html="aiInsights"></div>
-          <div v-else-if="isGenerating" class="text-teal-600 text-sm animate-pulse font-medium">✨ Meminta Gemini untuk menganalisis buku ini...</div>
-          <div v-else class="text-slate-500 text-sm">Klik tombol di atas untuk mendapatkan ringkasan AI, poin pembelajaran, dan ulasan instan menggunakan teknologi Gemini.</div>
+          <div v-else-if="isGenerating" class="text-teal-600 text-sm animate-pulse font-medium">✨ Meminta AI Teman Baca untuk menganalisis buku ini...</div>
+          <div v-else class="text-slate-500 text-sm">Klik tombol di atas untuk mendapatkan ringkasan AI, poin pembelajaran, dan ulasan instan.</div>
         </div>
       </div>
     </div>

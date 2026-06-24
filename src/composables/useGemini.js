@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 
 export const useGemini = () => {
-  const apiKey = "http://192.168.0.154:3000"; // Masukkan API Key Anda di sini
+  const apiKey = "AIzaSyDqIKBWVp4ycwYwTAwHP7mLWtF4SMIEyMA"; // Masukkan API Key Anda di sini
   const isGenerating = ref(false);
 
   const generateText = async (prompt, retries = 5) => {
@@ -10,12 +10,15 @@ export const useGemini = () => {
     
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+        // PERBAIKAN: Mengubah nama model menjadi 'gemini-2.5-flash' yang stabil
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            systemInstruction: { parts: [{ text: "You are a helpful AI assistant for an educational digital library." }] }
+           systemInstruction: { 
+          parts: [{ text: "You are a helpful AI assistant for an educational digital library. " +"Provide a very brief summary and key insight of the book in Indonesian. " +"Strictly limit your response to a maximum of 3-4 concise sentences or lines. No long lists." }] 
+}
           })
         });
         
