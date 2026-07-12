@@ -17,6 +17,12 @@ const confirmPassword = ref('')
 // State UI
 const error = ref('')
 const isLoading = ref(false)
+const showSuccess = ref(false)
+
+const goToLogin = () => {
+  showSuccess.value = false
+  router.push('/login')
+}
 
 const doRegister = async () => {
   error.value = ''
@@ -40,8 +46,7 @@ const doRegister = async () => {
   isLoading.value = false
 
   if (result.success) {
-    alert('Registrasi Berhasil! Silakan masuk menggunakan akun baru Anda.')
-    router.push('/login')
+    showSuccess.value = true
   } else {
     error.value = result.message
   }
@@ -159,5 +164,48 @@ const doRegister = async () => {
       </div>
 
     </div>
+
+    <!-- 🌟 Modal Sukses Registrasi -->
+    <Transition
+      enter-active-class="transition duration-300 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition duration-200 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="showSuccess"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+      >
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center border border-slate-100 animate-pop">
+          <div class="w-16 h-16 bg-teal-100 rounded-full mx-auto flex items-center justify-center mb-5">
+            <svg class="w-9 h-9 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+          </div>
+          <h2 class="text-xl font-bold text-slate-800 mb-2">Registrasi Berhasil!</h2>
+          <p class="text-sm text-slate-500 mb-6">
+            Akun Anda telah dibuat. Silakan masuk menggunakan akun baru Anda untuk mulai menikmati fasilitas EduLibrary.
+          </p>
+          <button
+            @click="goToLogin"
+            class="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 rounded-lg transition shadow-md shadow-teal-600/20 text-sm"
+          >
+            Lanjut ke Halaman Login
+          </button>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
+
+<style scoped>
+@keyframes pop {
+  0% { opacity: 0; transform: scale(0.9) translateY(12px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-pop {
+  animation: pop 0.3s ease-out;
+}
+</style>
