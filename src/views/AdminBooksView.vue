@@ -136,8 +136,11 @@ const filteredUsers = computed(() => {
 
 const filteredBooks = computed(() => {
   const allBooks = bookStore.books || []
+  const q = searchQuery.value.toLowerCase().trim()
   return allBooks.filter(book => {
-    const matchesSearch = book.title?.toLowerCase().includes(searchQuery.value.toLowerCase())
+    const matchesSearch =
+      book.title?.toLowerCase().includes(q) ||
+      book.author?.toLowerCase().includes(q)
     const matchesType = 
       selectedType.value === 'Semua Mode' || 
       (selectedType.value === 'E-Book' && book.type === 'digital') ||
@@ -524,7 +527,35 @@ const processOfflineLoan = async () => {
           <Icon name="plus" size="16"/> Tambah Buku via API
         </button>
       </div>
-      
+
+      <div class="mb-6 flex flex-col md:flex-row gap-3 items-stretch bg-slate-50/70 border border-slate-200 rounded-2xl p-3 shadow-sm">
+        <div class="relative w-full md:flex-1">
+          <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+            <Icon name="search" size="18" />
+          </span>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Cari judul atau penulis..."
+            class="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/60 focus:border-teal-400 text-slate-700 text-sm placeholder-slate-400 transition"
+          />
+        </div>
+        <select
+          v-model="selectedType"
+          class="w-full md:w-44 px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/60 focus:border-teal-400 text-slate-700 text-sm transition cursor-pointer"
+        >
+          <option value="Semua Mode">Semua Mode</option>
+          <option value="E-Book">E-Book</option>
+          <option value="Fisik">Fisik</option>
+        </select>
+        <select
+          v-model="selectedCategory"
+          class="w-full md:w-52 px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/60 focus:border-teal-400 text-slate-700 text-sm transition cursor-pointer"
+        >
+          <option v-for="cat in uniqueCategories" :key="cat" :value="cat">{{ cat }}</option>
+        </select>
+      </div>
+
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm border-collapse">
           <thead>
@@ -553,6 +584,121 @@ const processOfflineLoan = async () => {
         </table>
         <div v-if="filteredBooks.length === 0" class="text-center py-6 text-slate-500 bg-slate-50">
           Database buku Anda kosong atau tidak cocok dengan filter. Silakan tambah buku baru.
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 👥 MODAL EDIT AKUN PENGGUNA                 -->
+    <!-- ========================================== -->
+    <div
+      v-if="showUserModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+      @click.self="showUserModal = false"
+    >
+      <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h3 class="text-lg font-bold text-slate-800">Edit Akun Pengguna</h3>
+          <button @click="showUserModal = false" class="text-slate-400 hover:text-slate-600 transition">
+            <Icon name="x" size="20" />
+          </button>
+        </div>
+        <div class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Nama Pengguna</label>
+            <input v-model="editingUser.name" type="text" placeholder="Nama..." class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <input v-model="editingUser.email" type="email" placeholder="Email..." class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">No. WhatsApp</label>
+            <input v-model="editingUser.phone" type="text" placeholder="08..." class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Status Membership</label>
+            <select v-model="editingUser.membership" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 text-sm bg-white cursor-pointer">
+              <option value="Gratis">Gratis</option>
+              <option value="Premium">Premium ⭐</option>
+              <option value="GOD">GOD 👑</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-100">
+          <button @click="showUserModal = false" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 transition">Batal</button>
+          <button @click="saveUserChanges" :disabled="isProcessingUser" class="px-4 py-2 rounded-lg text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 transition disabled:opacity-60 disabled:cursor-not-allowed">
+            {{ isProcessingUser ? 'Menyimpan...' : 'Simpan Perubahan' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 📚 MODAL TAMBAH / EDIT BUKU                 -->
+    <!-- ========================================== -->
+    <div
+      v-if="showAddModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+      @click.self="showAddModal = false"
+    >
+      <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h3 class="text-lg font-bold text-slate-800">{{ isEditMode ? 'Edit Buku' : 'Tambah Buku Baru' }}</h3>
+          <button @click="showAddModal = false" class="text-slate-400 hover:text-slate-600 transition">
+            <Icon name="x" size="20" />
+          </button>
+        </div>
+        <div class="p-6 space-y-4 overflow-y-auto">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Judul Buku</label>
+            <input v-model="newBook.title" type="text" placeholder="Judul buku..." class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 text-sm">
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Penulis</label>
+              <input v-model="newBook.author" type="text" placeholder="Penulis..." class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Kategori</label>
+              <input v-model="newBook.category" type="text" placeholder="Kategori..." class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 text-sm">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Tipe</label>
+              <select v-model="newBook.type" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 text-sm bg-white cursor-pointer">
+                <option value="physical">Fisik</option>
+                <option value="digital">E-Book</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Stok</label>
+              <input v-model.number="newBook.stock" type="number" min="0" :disabled="newBook.type === 'digital'" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 text-sm disabled:bg-slate-100 disabled:text-slate-400">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Harga (Rp)</label>
+              <input v-model.number="newBook.harga" type="number" min="0" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 text-sm">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Deskripsi</label>
+            <textarea v-model="newBook.description" rows="3" placeholder="Deskripsi singkat..." class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 text-sm resize-none"></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Cover Buku (gambar)</label>
+            <input @change="handleFileChange" type="file" accept="image/*" class="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 cursor-pointer">
+          </div>
+          <div v-if="newBook.type === 'digital'">
+            <label class="block text-sm font-medium text-slate-700 mb-1">File PDF (E-Book)</label>
+            <input @change="handlePdfChange" type="file" accept="application/pdf" class="w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 cursor-pointer">
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-100">
+          <button @click="showAddModal = false" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 transition">Batal</button>
+          <button @click="saveBook" :disabled="isProcessing" class="px-4 py-2 rounded-lg text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 transition disabled:opacity-60 disabled:cursor-not-allowed">
+            {{ isProcessing ? 'Menyimpan...' : (isEditMode ? 'Simpan Perubahan' : 'Tambah Buku') }}
+          </button>
         </div>
       </div>
     </div>

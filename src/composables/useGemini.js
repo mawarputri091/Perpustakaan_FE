@@ -1,24 +1,29 @@
 import { ref } from 'vue'
 
 export const useGemini = () => {
-  const apiKey = "AIzaSyDqIKBWVp4ycwYwTAwHP7mLWtF4SMIEyMA"; // Masukkan API Key Anda di sini
+  // 🔒 AMAN: Mengambil API Key dari environment variable agar tidak bocor di GitHub
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY; 
   const isGenerating = ref(false);
 
   const generateText = async (prompt, retries = 5) => {
+    if (!apiKey) {
+      console.error("API Key Gemini belum diatur di file .env");
+      return "Error: API Key belum dikonfigurasi di lingkungan aplikasi.";
+    }
+
     isGenerating.value = true;
     const delays = [1000, 2000, 4000, 8000, 16000];
     
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
-        // PERBAIKAN: Mengubah nama model menjadi 'gemini-2.5-flash' yang stabil
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-           systemInstruction: { 
-          parts: [{ text: "You are a helpful AI assistant for an educational digital library. " +"Provide a very brief summary and key insight of the book in Indonesian. " +"Strictly limit your response to a maximum of 3-4 concise sentences or lines. No long lists." }] 
-}
+            systemInstruction: { 
+              parts: [{ text: "You are a helpful AI assistant for an educational digital library. Provide a very brief summary and key insight of the book in Indonesian. Strictly limit your response to a maximum of 3-4 concise sentences or lines. No long lists." }] 
+            }
           })
         });
         
