@@ -1,9 +1,8 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue' // 🌟 Tambahkan ref dan onMounted ke sini
 import { useAuthStore } from '../stores/authStore'
 import { useBookStore } from '../stores/bookStore'
 import { useLoanStore } from '../stores/loanStore'
-import { mockUsers } from '../data/mockData'
 import Icon from '../components/Icon.vue'
 import BookCard from '../components/BookCard.vue'
 
@@ -11,20 +10,32 @@ const auth = useAuthStore()
 const bookStore = useBookStore()
 const loanStore = useLoanStore()
 
+// 🌟 Buat state reaktif baru untuk menampung list user dari backend
+const totalUsersCount = ref(0)
+
+// 🌟 Ambil data user dari backend ketika halaman dashboard dibuka
+onMounted(async () => {
+  if (auth.user?.role === 'admin') {
+    const allUsers = await auth.fetchAllUsers()
+    if (allUsers) {
+      totalUsersCount.value = allUsers.length // Ambil total jumlah baris data user
+    }
+  }
+})
+
 const stats = computed(() => {
   if (auth.user?.role === 'admin') {
     return [
       { label: 'Total Buku', value: bookStore.books.length, icon: 'book', color: 'text-teal-600', bg: 'bg-teal-100' },
       
-      // 🛠️ FIX UNTUK ADMIN: Sesuaikan string status dengan database backend Anda
       { label: 'Peminjaman Aktif & Pending', value: loanStore.loans.filter(l => l.status === 'dipinjam' || l.status === 'menunggu').length, icon: 'bookmark', color: 'text-amber-600', bg: 'bg-amber-100' },
       
-      { label: 'Total Member', value: 3, icon: 'users', color: 'text-blue-600', bg: 'bg-blue-100' }
+      // 📋 SEKARANG UBAH VALUE NYA MENJADI VARIABEL TOTALUSERSCOUNT
+      { label: 'Total Member', value: totalUsersCount.value, icon: 'users', color: 'text-blue-600', bg: 'bg-blue-100' }
     ]
   } else if (auth.user) {
     const userL = loanStore.userLoans(auth.user.id)
     return [
-      // 🛠️ FIX UNTUK USER: Sesuaikan juga status untuk halaman dashboard user/siswa
       { label: 'Buku Dipinjam', value: userL.filter(l => l.status === 'dipinjam').length, icon: 'book', color: 'text-teal-600', bg: 'bg-teal-100' },
       { label: 'Menunggu Persetujuan', value: userL.filter(l => l.status === 'menunggu').length, icon: 'bookmark', color: 'text-amber-600', bg: 'bg-amber-100' },
       { label: 'Buku Dikembalikan', value: userL.filter(l => l.status === 'dikembalikan').length, icon: 'bookmark', color: 'text-blue-600', bg: 'bg-blue-100' }

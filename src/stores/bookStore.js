@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-const API_URL = 'http://192.168.1.3:3000'
+const API_URL = 'http://192.168.1.9:3000'
 
 const getHeaders = () => {
   const token = localStorage.getItem('api_token');

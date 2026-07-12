@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useBookStore } from './bookStore'
 
-const API_URL = 'http://192.168.1.3:3000'
+const API_URL = 'http://192.168.1.9:3000'
 
 // Ambil token auth dengan aman
 const getHeaders = () => {

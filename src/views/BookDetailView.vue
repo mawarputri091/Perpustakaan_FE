@@ -16,6 +16,11 @@ const loanStore = useLoanStore()
 const book = computed(() => bookStore.books.find(b => b.id === parseInt(route.params.id) || b.id === route.params.id))
 const msg = ref('')
 
+// 🔑 Cek apakah user memiliki akses penuh (premium, admin, atau GOD)
+const hasFullAccess = computed(() => {
+  return ['premium', 'admin', 'GOD'].includes(auth.user?.membership)
+})
+
 // 🛠️ Virtual Type Checker (Mengecek apakah buku digital atau fisik)
 const isDigital = computed(() => {
   return book.value && ((book.value.pdf_buku && book.value.pdf_buku !== 'null' && book.value.pdf_buku !== '') || book.value.type === 'digital')
@@ -45,24 +50,35 @@ const aiInsights = ref('')
 
 const fetchInsights = async () => {
   if (!book.value) return
+<<<<<<< Updated upstream
+=======
+  
+  if (isGenerating.value) return
+
+>>>>>>> Stashed changes
   aiInsights.value = ''
   const title = book.value.nama_buku || book.value.title
   const author = book.value.penulis || book.value.author || 'Penulis Tidak Diketahui'
   const prompt = `Berikan ringkasan singkat, 3 poin penting yang dipelajari, dan alasan kenapa buku "${title}" karangan ${author} ini sangat menarik untuk dibaca. Jawab menggunakan bahasa Indonesia, buat paragraf yang natural. Gunakan **teks tebal** untuk poin penting.`
   const response = await generateText(prompt)
+<<<<<<< Updated upstream
   aiInsights.value = response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')
+=======
+  
+  if (response && !response.startsWith('Error:')) {
+    aiInsights.value = response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')
+  } else {
+    aiInsights.value = response 
+  }
+>>>>>>> Stashed changes
 }
 
-// CARI CODENYA YANG SEPERTI INI, LALU GANTI:
 const handleAction = async () => {
   if (!book.value) return
   
   if (isDigital.value) {
-    // PERBAIKAN: Jangan buka window.open, melainkan arahkan langsung ke PdfReaderView menggunakan Router
-    // Sesuaikan path '/read/' dengan path router yang mengarah ke PdfReaderView.vue
     router.push('/read/' + book.value.id)
   } else {
-    // 🛠️ TAMBAHKAN VALIDASI FRONTEND SEBELUM HIT API
     const currentStock = book.value.stok !== undefined ? book.value.stok : book.value.stock
     
     if (currentStock <= 0) {
@@ -77,7 +93,6 @@ const handleAction = async () => {
       return
     }
 
-    // Jika lolos pengecekan frontend, baru panggil store backend
     const success = await loanStore.requestLoan(auth.user?.id, book.value.id)
     if (success) {
       msg.value = 'Permintaan berhasil dikirim. Menunggu persetujuan Admin.'
@@ -89,36 +104,28 @@ const handleAction = async () => {
 }
 
 const downloadPDF = async () => {
-  if (auth.user?.membership !== 'premium') {
+  // Izinkan premium, admin, atau GOD melewati pembatasan upgrade
+  if (!hasFullAccess.value) {
     router.push('/upgrade')
   } else {
     if (book.value?.pdf_buku) {
       try {
-        // 1. Ambil data file PDF dari backend sebagai Blob (Binary Large Object)
         const response = await fetch(book.value.pdf_buku)
         const blob = await response.blob()
-        
-        // 2. Buat URL sementara lokal di dalam memori browser
         const url = window.URL.createObjectURL(blob)
-        
-        // 3. Manipulasi HTML Anchor untuk memicu download langsung
         const link = document.createElement('a')
         link.href = url
         
-        // Beri nama file unduhan otomatis sesuai nama buku
         const namaFile = book.value.nama_buku || book.value.title || 'Buku'
         link.setAttribute('download', `${namaFile}.pdf`)
         
-        // 4. Eksekusi klik otomatis untuk download
         document.body.appendChild(link)
         link.click()
         
-        // 5. Bersihkan kembali element dan URL memori setelah selesai
         document.body.removeChild(link)
         window.URL.revokeObjectURL(url)
       } catch (error) {
         console.error("Gagal mengunduh file secara otomatis:", error)
-        // Fallback: jika terjadi masalah CORS di local, buka di tab baru sebagai cadangan
         window.open(book.value.pdf_buku, '_blank')
       }
     } else {
@@ -132,42 +139,50 @@ const reviewRating = ref(5)
 
 const submitReview = () => {
   if (reviewText.value.trim() && book.value) {
-    // Parameter: bookId, nama_user, rating, teks_ulasan
-
-}    const success = bookStore.addReview(
+    const success = bookStore.addReview(
       book.value.id, 
-      auth.user?.name || auth.user?.username || 'gratis', // ambil nama user yang login
+      auth.user?.name || auth.user?.username || 'gratis',
       reviewRating.value, 
-      reviewText.value
+      reviewText.value,
+      new Date().toISOString()
     )
     
     if (success) {
-      reviewText.value = '' // Kosongkan form kembali setelah berhasil
+      reviewText.value = ''
     }
   }
+}
 
+const formatDate = (dateString) => {
+  if (!dateString) return 'Baru-baru ini'
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) {
+    return 'Baru-baru ini'
+  }
+  return date.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+}
 </script>
 
 <template>
   <div v-if="book" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
     <div class="p-6 lg:p-8 flex flex-col md:flex-row gap-8">
       <div class="w-full md:w-1/3 lg:w-1/4 shrink-0">
-        <!-- 🛠️ Perbaikan Cover Bind database -->
         <img :src="book.foto_buku || book.cover" alt="Cover" class="w-full rounded-xl shadow-md border border-slate-100 aspect-[3/4] object-cover bg-slate-200">
         
-        <!-- 🛠️ Info Stok Dinamis hanya jika Buku Fisik -->
         <div v-if="!isDigital" class="mt-4 p-4 rounded-xl text-center font-medium border" 
              :class="(book.stok !== undefined ? book.stok : book.stock) > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100'">
           {{ (book.stok !== undefined ? book.stok : book.stock) > 0 ? 'Stok Tersedia: ' + (book.stok !== undefined ? book.stok : book.stock) : 'Stok Kosong' }}
         </div>
         
         <div class="flex flex-col gap-2 mt-4">
-          <!-- Tombol Baca Online jika Buku Digital -->
           <button v-if="isDigital" @click="handleAction" class="w-full py-3 px-4 rounded-xl font-bold text-white transition shadow-sm flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700">
             <Icon name="monitor" size="20" /> Baca Online PDF
           </button>
 
-          <!-- Alur Tombol jika Buku Fisik -->
           <template v-else>
             <button v-if="isBorrowedActive" disabled class="w-full py-3 px-4 rounded-xl font-bold text-teal-700 transition shadow-sm flex items-center justify-center gap-2 bg-teal-100 cursor-not-allowed">
               <Icon name="bookmark" size="20" /> Sedang Dipinjam
@@ -182,9 +197,16 @@ const submitReview = () => {
             </button>
           </template>
 
-          <button v-if="isDigital" @click="downloadPDF" class="w-full py-3 px-4 rounded-xl font-bold transition shadow-sm border flex items-center justify-center gap-2" :class="auth.user?.membership === 'premium' ? 'bg-white text-teal-600 border-teal-200 hover:bg-teal-50' : 'bg-slate-50 text-slate-400 border-slate-200'">
+          <button 
+            v-if="isDigital" 
+            @click="downloadPDF" 
+            class="w-full py-3 px-4 rounded-xl font-bold transition shadow-sm border flex items-center justify-center gap-2" 
+            :class="hasFullAccess 
+              ? 'bg-white text-teal-600 border-teal-200 hover:bg-teal-50 cursor-pointer' 
+              : 'bg-slate-50 text-slate-400 border-slate-200'"
+          >
              <Icon name="download" size="20" />
-             {{ auth.user?.membership === 'premium' ? 'Unduh PDF' : 'Unduh (Premium)' }}
+             {{ hasFullAccess ? 'Unduh PDF' : 'Unduh (Premium)' }}
           </button>
         </div>
         <div v-if="msg" class="mt-3 text-sm text-center font-medium px-2 py-1.5 rounded" :class="msg.includes('berhasil') ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-500 border border-red-100'">{{ msg }}</div>
@@ -222,11 +244,9 @@ const submitReview = () => {
       </div>
     </div>
 
-    <!-- Section Ulasan -->
     <div class="border-t border-slate-100 bg-slate-50 p-6 lg:p-8">
       <h3 class="text-xl font-bold text-slate-800 mb-6">Ulasan Pembaca</h3>
       
-      <!-- Form Ulasan -->
       <div v-if="auth.user?.role === 'user'" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mb-8">
          <h4 class="font-bold text-slate-700 mb-3">Tulis ulasan Anda</h4>
          <textarea v-model="reviewText" rows="3" class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-teal-500 outline-none mb-3" placeholder="Bagaimana pendapat Anda tentang buku ini?"></textarea>
@@ -242,7 +262,6 @@ const submitReview = () => {
          </div>
       </div>
 
-      <!-- List Ulasan -->
       <div class="space-y-4">
         <div v-for="(rev, idx) in book.reviews" :key="idx" class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
            <div class="flex items-center gap-2 mb-2">
@@ -253,7 +272,7 @@ const submitReview = () => {
                   <span v-for="n in 5" :key="n" :class="n <= rev.rating ? 'text-amber-400' : 'text-slate-200'">★</span>
                </div>
              </div>
-             <div class="ml-auto text-xs text-slate-400">{{ new Date(rev.date).toLocaleDateString('id-ID') }}</div>
+            <div class="ml-auto text-xs text-slate-400 font-medium">{{ formatDate(rev.created_at || rev.createdAt || rev.date) }}</div>
            </div>
            <p class="text-slate-600 text-sm pl-10">{{ rev.text }}</p>
         </div>
