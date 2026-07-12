@@ -64,13 +64,6 @@ const doLogin = async () => {
             required
           >
         </div>
-<<<<<<< Updated upstream
-        <div v-if="error" class="text-red-500 text-sm text-center bg-red-50 p-2 rounded">{{ error }}</div>
-        <button type="submit" :disabled="isLoading" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 rounded-lg transition shadow-md shadow-teal-600/20 disabled:opacity-70 flex justify-center items-center">
-          <span v-if="isLoading" class="animate-pulse">Memproses...</span>
-          <span v-else>Masuk via API</span>
-=======
-
         <div v-if="error" class="text-red-600 text-xs font-medium text-center bg-red-50 p-2.5 rounded-lg border border-red-100">
           {{ error }}
         </div>
@@ -85,7 +78,6 @@ const doLogin = async () => {
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
           <span>{{ isLoading ? 'MEMPROSES...' : 'LOGIN' }}</span>
->>>>>>> Stashed changes
         </button>
       </form>
 
