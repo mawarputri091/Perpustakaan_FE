@@ -50,27 +50,20 @@ const aiInsights = ref('')
 
 const fetchInsights = async () => {
   if (!book.value) return
-<<<<<<< Updated upstream
-=======
   
   if (isGenerating.value) return
 
->>>>>>> Stashed changes
   aiInsights.value = ''
   const title = book.value.nama_buku || book.value.title
   const author = book.value.penulis || book.value.author || 'Penulis Tidak Diketahui'
   const prompt = `Berikan ringkasan singkat, 3 poin penting yang dipelajari, dan alasan kenapa buku "${title}" karangan ${author} ini sangat menarik untuk dibaca. Jawab menggunakan bahasa Indonesia, buat paragraf yang natural. Gunakan **teks tebal** untuk poin penting.`
   const response = await generateText(prompt)
-<<<<<<< Updated upstream
-  aiInsights.value = response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')
-=======
   
   if (response && !response.startsWith('Error:')) {
     aiInsights.value = response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')
   } else {
     aiInsights.value = response 
   }
->>>>>>> Stashed changes
 }
 
 const handleAction = async () => {

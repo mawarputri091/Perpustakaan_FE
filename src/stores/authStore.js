@@ -67,14 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
       return { success: true }
     } catch (error) {
       console.error("[Login Gagal]:", error.message)
-<<<<<<< Updated upstream
-      const errorMsg = error.message === 'Failed to fetch' 
-          ? 'Server API Offline (Gagal Terhubung ke 10.134.199.62)' 
-          : error.message
-          
-=======
       const errorMsg = error.message === 'Failed to fetch' ? 'Server API Offline' : error.message
->>>>>>> Stashed changes
       return { success: false, message: errorMsg }
     }
   }
