@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore' // 🌟 Impor authStore
 
@@ -19,6 +19,69 @@ const error = ref('')
 const isLoading = ref(false)
 const showSuccess = ref(false)
 
+// 🌟 Validasi real-time seperti website asli.
+// Error baru muncul setelah field pernah disentuh (blur), supaya form tidak
+// langsung merah semua saat pertama dibuka.
+const touched = ref({
+  name: false,
+  email: false,
+  phone: false,
+  username: false,
+  password: false,
+  confirmPassword: false
+})
+
+const markTouched = (field) => {
+  touched.value[field] = true
+}
+
+// Aturan: Nama lengkap minimal 8 karakter, boleh pakai simbol apapun
+const nameError = computed(() => {
+  if (!name.value) return 'Nama lengkap wajib diisi.'
+  if (name.value.trim().length < 8) return 'Nama lengkap minimal 8 karakter.'
+  return ''
+})
+
+const emailError = computed(() => {
+  if (!email.value) return 'Alamat email wajib diisi.'
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) return 'Format email tidak valid. Contoh: nama@email.com'
+  return ''
+})
+
+const phoneError = computed(() => {
+  if (!phone.value) return 'Nomor telepon wajib diisi.'
+  if (!/^08\d{8,11}$/.test(phone.value)) return 'Nomor harus diawali 08 dan terdiri dari 10–13 digit angka.'
+  return ''
+})
+
+const usernameError = computed(() => {
+  if (!username.value) return 'Username wajib diisi.'
+  if (username.value.length < 5) return 'Username minimal 5 karakter.'
+  if (!/^[a-zA-Z0-9._]+$/.test(username.value)) return 'Username hanya boleh huruf, angka, titik, dan underscore (tanpa spasi).'
+  return ''
+})
+
+const passwordError = computed(() => {
+  if (!password.value) return 'Password wajib diisi.'
+  if (password.value.length < 8) return 'Password minimal 8 karakter.'
+  return ''
+})
+
+const confirmPasswordError = computed(() => {
+  if (!confirmPassword.value) return 'Konfirmasi password wajib diisi.'
+  if (confirmPassword.value !== password.value) return 'Konfirmasi password tidak cocok.'
+  return ''
+})
+
+const isFormValid = computed(() =>
+  !nameError.value &&
+  !emailError.value &&
+  !phoneError.value &&
+  !usernameError.value &&
+  !passwordError.value &&
+  !confirmPasswordError.value
+)
+
 const goToLogin = () => {
   showSuccess.value = false
   router.push('/login')
@@ -26,9 +89,12 @@ const goToLogin = () => {
 
 const doRegister = async () => {
   error.value = ''
-  
-  if (password.value !== confirmPassword.value) {
-    error.value = 'Konfirmasi password tidak cocok!'
+
+  // Tandai semua field sebagai tersentuh supaya semua error tampil saat submit
+  Object.keys(touched.value).forEach((key) => { touched.value[key] = true })
+
+  if (!isFormValid.value) {
+    error.value = 'Periksa kembali data Anda, masih ada isian yang belum valid.'
     return
   }
 
@@ -70,68 +136,110 @@ const doRegister = async () => {
       <form @submit.prevent="doRegister" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">Nama Lengkap</label>
-          <input 
-            v-model="name" 
-            type="text" 
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 outline-none transition text-sm" 
-            placeholder="Nama lengkap Anda..." 
+          <input
+            v-model="name"
+            type="text"
+            @blur="markTouched('name')"
+            :class="[
+              'w-full px-4 py-2 rounded-lg border outline-none transition text-sm focus:ring-2',
+              touched.name && nameError
+                ? 'border-red-400 focus:ring-red-400 bg-red-50/50'
+                : 'border-slate-300 focus:ring-teal-500'
+            ]"
+            placeholder="Minimal 8 karakter, boleh pakai simbol..."
             required
           >
+          <p v-if="touched.name && nameError" class="text-red-600 text-xs mt-1">{{ nameError }}</p>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">Alamat Email</label>
-          <input 
-            v-model="email" 
-            type="email" 
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 outline-none transition text-sm" 
-            placeholder="contoh@email.com" 
+          <input
+            v-model="email"
+            type="email"
+            @blur="markTouched('email')"
+            :class="[
+              'w-full px-4 py-2 rounded-lg border outline-none transition text-sm focus:ring-2',
+              touched.email && emailError
+                ? 'border-red-400 focus:ring-red-400 bg-red-50/50'
+                : 'border-slate-300 focus:ring-teal-500'
+            ]"
+            placeholder="contoh@email.com"
             required
           >
+          <p v-if="touched.email && emailError" class="text-red-600 text-xs mt-1">{{ emailError }}</p>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">No. WhatsApp / Telp</label>
-          <input 
-            v-model="phone" 
-            type="text" 
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 outline-none transition text-sm" 
-            placeholder="Contoh: 0873636363" 
+          <input
+            v-model="phone"
+            type="text"
+            @blur="markTouched('phone')"
+            :class="[
+              'w-full px-4 py-2 rounded-lg border outline-none transition text-sm focus:ring-2',
+              touched.phone && phoneError
+                ? 'border-red-400 focus:ring-red-400 bg-red-50/50'
+                : 'border-slate-300 focus:ring-teal-500'
+            ]"
+            placeholder="Contoh: 0873636363"
             required
           >
+          <p v-if="touched.phone && phoneError" class="text-red-600 text-xs mt-1">{{ phoneError }}</p>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">Username</label>
-          <input 
-            v-model="username" 
-            type="text" 
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 outline-none transition text-sm" 
-            placeholder="Buat nama pengguna unik..." 
+          <input
+            v-model="username"
+            type="text"
+            @blur="markTouched('username')"
+            :class="[
+              'w-full px-4 py-2 rounded-lg border outline-none transition text-sm focus:ring-2',
+              touched.username && usernameError
+                ? 'border-red-400 focus:ring-red-400 bg-red-50/50'
+                : 'border-slate-300 focus:ring-teal-500'
+            ]"
+            placeholder="Buat nama pengguna unik..."
             required
           >
+          <p v-if="touched.username && usernameError" class="text-red-600 text-xs mt-1">{{ usernameError }}</p>
         </div>
-        
+
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
-          <input 
-            v-model="password" 
-            type="password" 
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 outline-none transition text-sm" 
-            placeholder="••••••••" 
+          <input
+            v-model="password"
+            type="password"
+            @blur="markTouched('password')"
+            :class="[
+              'w-full px-4 py-2 rounded-lg border outline-none transition text-sm focus:ring-2',
+              touched.password && passwordError
+                ? 'border-red-400 focus:ring-red-400 bg-red-50/50'
+                : 'border-slate-300 focus:ring-teal-500'
+            ]"
+            placeholder="Minimal 8 karakter"
             required
           >
+          <p v-if="touched.password && passwordError" class="text-red-600 text-xs mt-1">{{ passwordError }}</p>
         </div>
 
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">Konfirmasi Password</label>
-          <input 
-            v-model="confirmPassword" 
-            type="password" 
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 outline-none transition text-sm" 
-            placeholder="••••••••" 
+          <input
+            v-model="confirmPassword"
+            type="password"
+            @blur="markTouched('confirmPassword')"
+            :class="[
+              'w-full px-4 py-2 rounded-lg border outline-none transition text-sm focus:ring-2',
+              touched.confirmPassword && confirmPasswordError
+                ? 'border-red-400 focus:ring-red-400 bg-red-50/50'
+                : 'border-slate-300 focus:ring-teal-500'
+            ]"
+            placeholder="••••••••"
             required
           >
+          <p v-if="touched.confirmPassword && confirmPasswordError" class="text-red-600 text-xs mt-1">{{ confirmPasswordError }}</p>
         </div>
 
         <div v-if="error" class="text-red-600 text-xs font-medium text-center bg-red-50 p-2.5 rounded-lg border border-red-100">
