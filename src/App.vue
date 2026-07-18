@@ -1,16 +1,23 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
+import { useAuthStore } from './stores/authStore'
 import { useBookStore } from './stores/bookStore'
 import { useLoanStore } from './stores/loanStore'
 
+const auth = useAuthStore()
 const bookStore = useBookStore()
 const loanStore = useLoanStore()
 
 onMounted(() => {
-  // Menarik data dari API saat aplikasi pertama kali dimuat
+  // Katalog buku bersifat publik, boleh diambil kapan saja
   bookStore.fetchBooks()
-  loanStore.fetchLoans()
 })
+
+// Data peminjaman butuh token — hanya di-fetch setelah user login.
+// watch dengan immediate: true juga menangani kasus refresh saat sesi masih aktif.
+watch(() => auth.user, (u) => {
+  if (u) loanStore.fetchLoans()
+}, { immediate: true })
 </script>
 
 <template>

@@ -19,7 +19,7 @@ const borrowerName = ref('')
 // 👥 STATE & CRUD AKSI MANAJEMEN USER BARU
 // ==========================================
 const showUserModal = ref(false)
-const editingUser = reactive({ id: null, name: '', email: '', phone: '', membership: 'Gratis' })
+const editingUser = reactive({ id: null, name: '', username: '', email: '', phone: '', membership: 'Gratis' })
 const isProcessingUser = ref(false)
 
 // Fungsi membuka modal edit user
@@ -27,6 +27,7 @@ const openEditUserModal = (user) => {
   Object.assign(editingUser, {
     id: user.id,
     name: user.name || user.username,
+    username: user.username || '',
     email: user.email || '',
     phone: user.phone && user.phone !== '-' ? user.phone : (user.no_telp && user.no_telp !== '-' ? user.no_telp : ''),
     membership: user.membership || 'Gratis'
@@ -43,9 +44,9 @@ const saveUserChanges = async () => {
   isProcessingUser.value = true
   
   const payload = {
-    username: editingUser.name,
+    username: editingUser.username.trim() || editingUser.name,
     email: editingUser.email,
-    phone: editingUser.phone, 
+    phone: editingUser.phone,
     membership: editingUser.membership
   }
 
@@ -120,9 +121,11 @@ const filteredUsers = computed(() => {
   const allUsers = adminUsersList.value || []
   return allUsers.filter(user => {
     const nameToSearch = user.name || user.username || ''
+    const usernameToSearch = user.username || ''
     const emailToSearch = user.email || ''
-    
-    const matchesSearch = nameToSearch.toLowerCase().includes(userSearchQuery.value.toLowerCase()) || 
+
+    const matchesSearch = nameToSearch.toLowerCase().includes(userSearchQuery.value.toLowerCase()) ||
+                          usernameToSearch.toLowerCase().includes(userSearchQuery.value.toLowerCase()) ||
                           emailToSearch.toLowerCase().includes(userSearchQuery.value.toLowerCase())
     
     const matchesMembership = 
@@ -166,7 +169,7 @@ const fetchAdminUsers = async () => {
     adminUsersList.value = res
   } else {
     adminUsersList.value = [
-      { id: 1, name: 'M. Fariz Rizki (Offline Cache)', email: 'fariz@gmail.com', membership: 'Premium' }
+      { id: 1, name: 'M. Fariz Rizki (Offline Cache)', username: 'fariz', email: 'fariz@gmail.com', membership: 'Premium' }
     ]
   }
 }
@@ -347,7 +350,7 @@ const processOfflineLoan = async () => {
           <input 
             v-model="userSearchQuery"
             type="text" 
-            placeholder="Cari nama anggota atau email..." 
+            placeholder="Cari nama anggota, username, atau email..."
             class="w-full pl-4 pr-4 py-2 bg-slate-800/80 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 text-white text-sm transition"
           />
         </div>
@@ -368,6 +371,7 @@ const processOfflineLoan = async () => {
           <thead>
             <tr class="bg-slate-800/60 text-slate-300 border-b border-slate-700 font-medium">
               <th class="p-3">Nama Pengguna</th>
+              <th class="p-3">Username</th>
               <th class="p-3">Email</th>
               <th class="p-3">No. WhatsApp</th>
               <th class="p-3 text-center">Status Membership</th>
@@ -377,6 +381,7 @@ const processOfflineLoan = async () => {
           <tbody class="divide-y divide-slate-800 text-slate-300">
             <tr v-for="user in filteredUsers" :key="user.id" class="hover:bg-slate-800/40 transition">
               <td class="p-3 font-semibold text-white">{{ user.name || user.username }}</td>
+              <td class="p-3 text-teal-400 font-medium">{{ user.username || '-' }}</td>
               <td class="p-3 text-slate-400">{{ user.email }}</td>
               <td class="p-3 text-slate-400">{{ user.phone || user.no_telp || '-' }}</td>
               <td class="p-3 text-center">
@@ -390,7 +395,7 @@ const processOfflineLoan = async () => {
               </td>
             </tr>
             <tr v-if="filteredUsers.length === 0">
-              <td colspan="5" class="text-center py-6 text-slate-500">Tidak ada pengguna yang sesuai filter.</td>
+              <td colspan="6" class="text-center py-6 text-slate-500">Tidak ada pengguna yang sesuai filter.</td>
             </tr>
           </tbody>
         </table>
@@ -607,6 +612,10 @@ const processOfflineLoan = async () => {
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-1">Nama Pengguna</label>
             <input v-model="editingUser.name" type="text" placeholder="Nama..." class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Username</label>
+            <input v-model="editingUser.username" type="text" placeholder="Username..." class="w-full border border-slate-300 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/40 text-sm">
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>

@@ -19,6 +19,12 @@ export const useLoanStore = defineStore('loan', () => {
 
   // 1. Ambil data peminjaman untuk Admin maupun User
   const fetchLoans = async () => {
+    // Endpoint /peminjaman butuh autentikasi — kalau belum login, jangan
+    // panggil API (akan selalu 401 dan memenuhi console dengan error).
+    if (!localStorage.getItem('api_token')) {
+      loans.value = []
+      return
+    }
     try {
       const res = await fetch(`${API_URL}/peminjaman`, { headers: getHeaders() })
       if (!res.ok) throw new Error('Gagal fetch peminjaman')

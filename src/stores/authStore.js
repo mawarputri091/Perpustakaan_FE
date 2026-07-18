@@ -19,7 +19,10 @@ export const useAuthStore = defineStore('auth', () => {
       
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
-        throw new Error(err.message || 'Username atau password salah')
+        // Jangan tampilkan kode error mentah dari backend (mis. INVALID_CREDENTIALS)
+        const rawMsg = err.message || ''
+        const isErrorCode = /^[A-Z0-9_]+$/.test(rawMsg)
+        throw new Error(!rawMsg || isErrorCode ? 'Username atau password salah' : rawMsg)
       }
       
       const result = await response.json()
@@ -123,9 +126,10 @@ export const useAuthStore = defineStore('auth', () => {
 
         return {
           id: u.id,
-          name: u.username || 'User',
-          email: u.email || '-', 
-          phone: u.no_telp || u.phone || '-', 
+          name: u.name || u.username || 'User',
+          username: u.username || '-',
+          email: u.email || '-',
+          phone: u.no_telp || u.phone || '-',
           membership: displayMembership
         }
       })

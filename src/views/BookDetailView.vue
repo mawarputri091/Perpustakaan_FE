@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { useBookStore } from '../stores/bookStore'
 import { useLoanStore } from '../stores/loanStore'
-import { useGemini } from '../composables/useGemini'
 import Icon from '../components/Icon.vue'
 
 const route = useRoute()
@@ -43,28 +42,6 @@ const isBorrowedActive = computed(() => {
       l.status === 'dipinjam'
   )
 })
-
-// AI Features
-const { generateText, isGenerating } = useGemini()
-const aiInsights = ref('')
-
-const fetchInsights = async () => {
-  if (!book.value) return
-  
-  if (isGenerating.value) return
-
-  aiInsights.value = ''
-  const title = book.value.nama_buku || book.value.title
-  const author = book.value.penulis || book.value.author || 'Penulis Tidak Diketahui'
-  const prompt = `Berikan ringkasan singkat, 3 poin penting yang dipelajari, dan alasan kenapa buku "${title}" karangan ${author} ini sangat menarik untuk dibaca. Jawab menggunakan bahasa Indonesia, buat paragraf yang natural. Gunakan **teks tebal** untuk poin penting.`
-  const response = await generateText(prompt)
-  
-  if (response && !response.startsWith('Error:')) {
-    aiInsights.value = response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')
-  } else {
-    aiInsights.value = response 
-  }
-}
 
 const handleAction = async () => {
   if (!book.value) return
@@ -221,19 +198,6 @@ const formatDate = (dateString) => {
         
         <h3 class="text-lg font-bold text-slate-800 mb-2">Sinopsis</h3>
         <p class="text-slate-600 leading-relaxed">{{ book.deskripsi || book.description || 'Tidak ada deskripsi.' }}</p>
-        
-        <div class="mt-8 bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl p-6 border border-teal-100 shadow-sm">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-teal-800 flex items-center gap-2">✨ AI Teman Baca</h3>
-            <button @click="fetchInsights" :disabled="isGenerating" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 disabled:opacity-50">
-              <span v-if="isGenerating" class="animate-spin text-lg">⏳</span>
-              {{ aiInsights ? 'Regenerate' : 'Generate Insights' }}
-            </button>
-          </div>
-          <div v-if="aiInsights" class="text-slate-700 text-sm leading-relaxed" v-html="aiInsights"></div>
-          <div v-else-if="isGenerating" class="text-teal-600 text-sm animate-pulse font-medium">✨ Meminta AI Teman Baca untuk menganalisis buku ini...</div>
-          <div v-else class="text-slate-500 text-sm">Klik tombol di atas untuk mendapatkan ringkasan AI, poin pembelajaran, dan ulasan instan.</div>
-        </div>
       </div>
     </div>
 

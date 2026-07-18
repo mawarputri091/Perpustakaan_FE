@@ -3,7 +3,6 @@ import { ref, computed, onMounted, shallowRef, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { useBookStore } from '../stores/bookStore'
-import { useGemini } from '../composables/useGemini'
 import Icon from '../components/Icon.vue'
 
 const route = useRoute()
@@ -20,35 +19,6 @@ const book = computed(() => bookStore.books.find(b => b.id === parseInt(route.pa
 const pagesContainerRef = ref(null)
 const pdfDoc = shallowRef(null)
 
-// AI Chat State
-const { generateText, isGenerating: isChatting } = useGemini()
-const showAiChat = ref(false)
-const chatInput = ref('')
-const chatMessages = ref([])
-const chatContainer = ref(null)
-
-const initChat = () => {
-  if (!book.value) return
-  if (chatMessages.value.length === 0) {
-    chatMessages.value.push({ role: 'assistant', text: `Halo! Saya adalah ✨ AI Teman Baca. Ada yang ingin kamu tanyakan atau diskusikan dari buku "${book.value.title}"?` })
-  }
-  showAiChat.value = !showAiChat.value
-}
-
-const sendChatMessage = async () => {
-  if(!chatInput.value.trim() || !book.value) return
-  const userText = chatInput.value
-  chatMessages.value.push({ role: 'user', text: userText })
-  chatInput.value = ''
-  setTimeout(() => { if(chatContainer.value) chatContainer.value.scrollTop = chatContainer.value.scrollHeight }, 50)
-
-  const prompt = `Sebagai AI tutor membaca untuk buku berjudul "${book.value.title}". Pengguna bertanya: "${userText}". Berikan jawaban yang bersahabat, mendidik, dan singkat (maksimal 3-4 kalimat). Gunakan bahasa Indonesia. Gunakan **teks tebal** untuk menekankan kata kunci.`
-  const response = await generateText(prompt)
-  
-  chatMessages.value.push({ role: 'assistant', text: response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>') })
-  setTimeout(() => { if(chatContainer.value) chatContainer.value.scrollTop = chatContainer.value.scrollHeight }, 50)
-}
-
 // State Reader
 const pageNum = ref(1)
 const scale = ref(1.5) 
@@ -56,9 +26,14 @@ const showUpgradeModal = ref(false)
 const error = ref('')
 const isBookmarked = ref(false)
 
+// Key localStorage dipisah per user supaya riwayat baca & bookmark
+// tidak tercampur antar akun di browser yang sama
+const bookmarkKey = computed(() => `book_bookmarks_${auth.user?.id || 'guest'}`)
+const historyKey = computed(() => `book_history_${auth.user?.id || 'guest'}`)
+
 const checkBookmarkStatus = () => {
   if (!book.value) return
-  const savedBookmarks = JSON.parse(localStorage.getItem('book_bookmarks') || '[]')
+  const savedBookmarks = JSON.parse(localStorage.getItem(bookmarkKey.value) || '[]')
   isBookmarked.value = savedBookmarks.some(b => b.id === book.value.id)
 }
 
@@ -175,7 +150,7 @@ const renderAllPages = async () => {
 
 const saveReadingHistory = (num) => {
   if (!book.value) return
-  let readingHistory = JSON.parse(localStorage.getItem('book_history') || '[]')
+  let readingHistory = JSON.parse(localStorage.getItem(historyKey.value) || '[]')
   readingHistory = readingHistory.filter(item => item.id !== book.value.id)
   readingHistory.unshift({
     id: book.value.id,
@@ -185,7 +160,7 @@ const saveReadingHistory = (num) => {
     terakhir_dibaca: new Date().toISOString(),
     halaman_terakhir: num
   })
-  localStorage.setItem('book_history', JSON.stringify(readingHistory))
+  localStorage.setItem(historyKey.value, JSON.stringify(readingHistory))
 }
 
 const scrollToPage = (targetPage) => {
@@ -205,7 +180,7 @@ const toggleBookmark = () => {
   if (!hasFullAccess.value) return showUpgradeModal.value = true
   if (!book.value) return
 
-  let savedBookmarks = JSON.parse(localStorage.getItem('book_bookmarks') || '[]')
+  let savedBookmarks = JSON.parse(localStorage.getItem(bookmarkKey.value) || '[]')
   
   if (isBookmarked.value) {
     savedBookmarks = savedBookmarks.filter(b => b.id !== book.value.id)
@@ -221,7 +196,7 @@ const toggleBookmark = () => {
     isBookmarked.value = true
   }
   
-  localStorage.setItem('book_bookmarks', JSON.stringify(savedBookmarks))
+  localStorage.setItem(bookmarkKey.value, JSON.stringify(savedBookmarks))
   bookStore.toggleBookmark(auth.user?.id, book.value.id, pageNum.value)
 }
 
@@ -307,29 +282,6 @@ const download = async () => {
         </div>
       </div>
       
-      <button @click="initChat" v-if="!showAiChat" class="fixed bottom-6 right-6 bg-teal-600 text-white px-5 py-3 rounded-full shadow-2xl hover:bg-teal-700 transition z-40 flex items-center gap-2 border border-teal-400/20">
-         <span class="text-lg">✨</span> <span class="font-bold text-sm">Tanya AI</span>
-      </button>
-
-      <div v-if="showAiChat" class="fixed bottom-6 right-6 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden z-40 animate-in slide-in-from-bottom-5" style="height: 480px; max-height: 75vh;">
-         <div class="bg-gradient-to-r from-teal-600 to-emerald-600 p-4 text-white flex justify-between items-center shrink-0">
-           <div class="font-bold flex items-center gap-2"><span class="text-xl">✨</span> AI Teman Baca</div>
-           <button @click="showAiChat = false" class="hover:text-teal-200 transition text-2xl leading-none">&times;</button>
-         </div>
-         <div ref="chatContainer" class="flex-grow p-4 overflow-y-auto bg-slate-50 flex flex-col gap-3">
-           <div v-for="(msg, i) in chatMessages" :key="i" :class="msg.role === 'user' ? 'self-end bg-teal-600 text-white rounded-br-none' : 'self-start bg-white border border-slate-200 text-slate-700 rounded-bl-none shadow-sm'" class="px-4 py-2.5 rounded-2xl text-sm max-w-[85%] leading-relaxed" v-html="msg.text">
-           </div>
-           <div v-if="isChatting" class="self-start bg-white border border-slate-200 text-slate-500 px-4 py-2.5 rounded-2xl rounded-bl-none shadow-sm text-sm italic animate-pulse flex gap-1">
-              <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-              <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
-              <span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
-           </div>
-         </div>
-         <div class="p-3 bg-white border-t border-slate-100 flex gap-2 shrink-0">
-           <input v-model="chatInput" @keyup.enter="sendChatMessage" placeholder="Tanyakan tentang isi buku..." class="flex-grow px-4 py-2 bg-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 transition">
-           <button @click="sendChatMessage" :disabled="isChatting || !chatInput.trim()" class="bg-teal-600 text-white w-9 h-9 rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center justify-center font-bold">➤</button>
-         </div>
-      </div>
     </div>
 
   </div>

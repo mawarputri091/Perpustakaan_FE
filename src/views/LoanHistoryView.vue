@@ -14,6 +14,11 @@ const activeTab = ref('loans')
 // Menggunakan satu state gabungan untuk semua aktivitas e-book
 const combinedReadingData = ref([])
 
+// Key localStorage dipisah per user supaya riwayat baca & bookmark
+// tidak tercampur antar akun di browser yang sama
+const bookmarkKey = computed(() => `book_bookmarks_${auth.user?.id || 'guest'}`)
+const historyKey = computed(() => `book_history_${auth.user?.id || 'guest'}`)
+
 const history = computed(() => {
   if (!auth.user) return []
 
@@ -29,8 +34,8 @@ const history = computed(() => {
 
 // Fungsi memuat & menggabungkan data riwayat membaca dan bookmark
 const loadReadingActivity = () => {
-  const bookmarks = JSON.parse(localStorage.getItem('book_bookmarks') || '[]')
-  const historyList = JSON.parse(localStorage.getItem('book_history') || '[]')
+  const bookmarks = JSON.parse(localStorage.getItem(bookmarkKey.value) || '[]')
+  const historyList = JSON.parse(localStorage.getItem(historyKey.value) || '[]')
 
   // Buat Map untuk menggabungkan data duplikat berdasarkan ID buku
   const mergedMap = new Map()
@@ -71,14 +76,14 @@ const loadReadingActivity = () => {
 // Fungsi menghapus item dari list (baik hapus bookmark atau hapus dari riwayat)
 const removeActivity = (id) => {
   // Hapus dari data bookmark
-  let bookmarks = JSON.parse(localStorage.getItem('book_bookmarks') || '[]')
+  let bookmarks = JSON.parse(localStorage.getItem(bookmarkKey.value) || '[]')
   bookmarks = bookmarks.filter(b => b.id !== id)
-  localStorage.setItem('book_bookmarks', JSON.stringify(bookmarks))
+  localStorage.setItem(bookmarkKey.value, JSON.stringify(bookmarks))
 
   // Hapus dari data riwayat membaca
-  let historyList = JSON.parse(localStorage.getItem('book_history') || '[]')
+  let historyList = JSON.parse(localStorage.getItem(historyKey.value) || '[]')
   historyList = historyList.filter(b => b.id !== id)
-  localStorage.setItem('book_history', JSON.stringify(historyList))
+  localStorage.setItem(historyKey.value, JSON.stringify(historyList))
 
   loadReadingActivity() // Segarkan UI langsung
 }
